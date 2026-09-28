@@ -1,6 +1,6 @@
 {
-  "gerado_em": "27/09/2026 05:35",
-  "hoje": "2026-09-27",
+  "gerado_em": "28/09/2026 05:58",
+  "hoje": "2026-09-28",
   "periodo_dados": {
     "de": "2026-09-24",
     "ate": "2026-09-26"
@@ -12,6 +12,55 @@
   "ticket_medio_geral": 47.0,
   "periodos": {
     "hoje": {
+      "de": "2026-09-28",
+      "ate": "2026-09-28",
+      "total": {
+        "gasto": 0.0,
+        "impr": 0.0,
+        "cliques": 0.0,
+        "pv": 0.0,
+        "ck": 0.0,
+        "vendas": 0,
+        "fat": 0.0,
+        "cpm": null,
+        "ctr": null,
+        "cpc": null,
+        "cpv": null,
+        "cr": null,
+        "cpic": null,
+        "vischk": null,
+        "convchk": null,
+        "convlp": null,
+        "cac": null,
+        "roas": null,
+        "ticket": null
+      },
+      "ads": {
+        "gasto": 0.0,
+        "impr": 0.0,
+        "cliques": 0.0,
+        "pv": 0.0,
+        "ck": 0.0,
+        "vendas": 0,
+        "fat": 0.0,
+        "cpm": null,
+        "ctr": null,
+        "cpc": null,
+        "cpv": null,
+        "cr": null,
+        "cpic": null,
+        "vischk": null,
+        "convchk": null,
+        "convlp": null,
+        "cac": null,
+        "roas": null,
+        "ticket": null
+      },
+      "campanhas": [],
+      "top_anuncios": [],
+      "piores_anuncios": []
+    },
+    "ontem": {
       "de": "2026-09-27",
       "ate": "2026-09-27",
       "total": {
@@ -60,9 +109,9 @@
       "top_anuncios": [],
       "piores_anuncios": []
     },
-    "ontem": {
+    "3d": {
       "de": "2026-09-26",
-      "ate": "2026-09-26",
+      "ate": "2026-09-28",
       "total": {
         "gasto": 189.94,
         "impr": 2977.0,
@@ -220,191 +269,9 @@
         }
       ]
     },
-    "3d": {
-      "de": "2026-09-25",
-      "ate": "2026-09-27",
-      "total": {
-        "gasto": 1122.91,
-        "impr": 24505.0,
-        "cliques": 263.0,
-        "pv": 215.0,
-        "ck": 13.0,
-        "vendas": 1,
-        "fat": 47.0,
-        "cpm": 45.82,
-        "ctr": 0.0107,
-        "cpc": 4.27,
-        "cpv": 5.22,
-        "cr": 0.8175,
-        "cpic": 86.38,
-        "vischk": 0.0605,
-        "convchk": 0.0769,
-        "convlp": 0.0047,
-        "cac": 1122.91,
-        "roas": 0.04,
-        "ticket": 47.0
-      },
-      "ads": {
-        "gasto": 1122.91,
-        "impr": 24505.0,
-        "cliques": 263.0,
-        "pv": 215.0,
-        "ck": 13.0,
-        "vendas": 1,
-        "fat": 47.0,
-        "cpm": 45.82,
-        "ctr": 0.0107,
-        "cpc": 4.27,
-        "cpv": 5.22,
-        "cr": 0.8175,
-        "cpic": 86.38,
-        "vischk": 0.0605,
-        "convchk": 0.0769,
-        "convlp": 0.0047,
-        "cac": 1122.91,
-        "roas": 0.04,
-        "ticket": 47.0
-      },
-      "campanhas": [
-        {
-          "nome": "SS-OUT26 | E2-CAP | P1-QUENTE | VND | CBO | 2026-09-25 | IMG | All in one",
-          "gasto": 450.94,
-          "impr": 11505.0,
-          "cliques": 99.0,
-          "pv": 82.0,
-          "ck": 7.0,
-          "vendas": 1,
-          "fat": 47.0,
-          "cpm": 39.2,
-          "ctr": 0.0086,
-          "cpc": 4.55,
-          "cpv": 5.5,
-          "cr": 0.8283,
-          "cpic": 64.42,
-          "vischk": 0.0854,
-          "convchk": 0.1429,
-          "convlp": 0.0122,
-          "cac": 450.94,
-          "roas": 0.1,
-          "ticket": 47.0
-        },
-        {
-          "nome": "SS-OUT26 | E2-CAP | P1-QUENTE | VND | CBO | 2026-09-25 | VID | All in one",
-          "gasto": 350.4,
-          "impr": 7660.0,
-          "cliques": 86.0,
-          "pv": 72.0,
-          "ck": 1.0,
-          "vendas": 0,
-          "fat": 0.0,
-          "cpm": 45.74,
-          "ctr": 0.0112,
-          "cpc": 4.07,
-          "cpv": 4.87,
-          "cr": 0.8372,
-          "cpic": 350.4,
-          "vischk": 0.0139,
-          "convchk": 0.0,
-          "convlp": 0.0,
-          "cac": null,
-          "roas": 0.0,
-          "ticket": null
-        },
-        {
-          "nome": "SS-OUT26 | E2-CAP | P1-QUENTE | VND | ABO | 2026-09-25 | Teste de paginas",
-          "gasto": 321.57,
-          "impr": 5340.0,
-          "cliques": 78.0,
-          "pv": 61.0,
-          "ck": 5.0,
-          "vendas": 0,
-          "fat": 0.0,
-          "cpm": 60.22,
-          "ctr": 0.0146,
-          "cpc": 4.12,
-          "cpv": 5.27,
-          "cr": 0.7821,
-          "cpic": 64.31,
-          "vischk": 0.082,
-          "convchk": 0.0,
-          "convlp": 0.0,
-          "cac": null,
-          "roas": 0.0,
-          "ticket": null
-        },
-        {
-          "nome": "SS-OUT26 | E2-CAP | P1-QUENTE | LEAD | ABO | 2026-09-24 | Teste de Criativos",
-          "gasto": 0.0,
-          "impr": 0.0,
-          "cliques": 0.0,
-          "pv": 0.0,
-          "ck": 0.0,
-          "vendas": 0,
-          "fat": 0.0,
-          "cpm": null,
-          "ctr": null,
-          "cpc": null,
-          "cpv": null,
-          "cr": null,
-          "cpic": null,
-          "vischk": null,
-          "convchk": null,
-          "convlp": null,
-          "cac": null,
-          "roas": null,
-          "ticket": null
-        }
-      ],
-      "top_anuncios": [
-        {
-          "nome": "EST17",
-          "gasto": 454.36,
-          "vendas": 1,
-          "cac": 454.36,
-          "roas": 0.1
-        },
-        {
-          "nome": "EST03",
-          "gasto": 39.33,
-          "vendas": 0,
-          "cac": null,
-          "roas": 0.0
-        },
-        {
-          "nome": "VID02",
-          "gasto": 259.43,
-          "vendas": 0,
-          "cac": null,
-          "roas": 0.0
-        },
-        {
-          "nome": "VID03",
-          "gasto": 153.44,
-          "vendas": 0,
-          "cac": null,
-          "roas": 0.0
-        },
-        {
-          "nome": "VID04",
-          "gasto": 62.41,
-          "vendas": 0,
-          "cac": null,
-          "roas": 0.0
-        }
-      ],
-      "piores_anuncios": [
-        {
-          "nome": "EST16",
-          "gasto": 153.93,
-          "vendas": 0,
-          "cac": null,
-          "roas": 0.0
-        }
-      ]
-    },
     "7d": {
-      "de": "2026-09-21",
-      "ate": "2026-09-27",
+      "de": "2026-09-22",
+      "ate": "2026-09-28",
       "total": {
         "gasto": 1354.3,
         "impr": 29921.0,
@@ -613,8 +480,8 @@
       ]
     },
     "14d": {
-      "de": "2026-09-14",
-      "ate": "2026-09-27",
+      "de": "2026-09-15",
+      "ate": "2026-09-28",
       "total": {
         "gasto": 1354.3,
         "impr": 29921.0,
@@ -823,8 +690,8 @@
       ]
     },
     "30d": {
-      "de": "2026-08-29",
-      "ate": "2026-09-27",
+      "de": "2026-08-30",
+      "ate": "2026-09-28",
       "total": {
         "gasto": 1354.3,
         "impr": 29921.0,
@@ -1034,7 +901,7 @@
     },
     "mes": {
       "de": "2026-09-01",
-      "ate": "2026-09-27",
+      "ate": "2026-09-28",
       "total": {
         "gasto": 1354.3,
         "impr": 29921.0,
