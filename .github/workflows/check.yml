@@ -1,0 +1,12 @@
+name: Check planilhas (temporario, somente leitura)
+on:
+  push:
+    branches: [ claude/fervent-einstein-u0f7y9 ]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 .discovery/check.py
