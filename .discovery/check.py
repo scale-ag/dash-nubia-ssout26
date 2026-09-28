@@ -3,7 +3,8 @@ S={"META":"15yljVveX8oiGL-JFIAFag2z_RREBO2TSj0C3KZLbTB0","VENDAS":"1mniLIjov9tc4
 get=lambda u: urllib.request.urlopen(urllib.request.Request(u,headers={"User-Agent":"chk/1.0","Cache-Control":"no-cache"}),timeout=60).read().decode("utf-8","replace")
 for k,sid in S.items():
     h=get(f"https://docs.google.com/spreadsheets/d/{sid}/htmlview")
-    tabs=[(g,html.unescape(n)) for g,n in re.findall(r'id="sheet-button-(\d+)"[^>]*>\s*<a[^>]*>(.*?)</a>',h,re.S)]
+    print("htmlview gids:", sorted(set(re.findall(r'gid[=:]\s*"?(\d+)', h))), "| titles:", re.findall(r'<title>(.*?)</title>', h))
+    tabs={"META":[("0","Meta Ads")],"VENDAS":[("796495406","Vendas"),("193755064","Leads")]}[k]
     print("###",k,"TABS:",tabs)
     for gid,name in tabs:
         rows=list(csv.reader(io.StringIO(get(f"https://docs.google.com/spreadsheets/d/{sid}/export?format=csv&gid={gid}"))))
