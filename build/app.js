@@ -371,9 +371,13 @@ function metaScope(ex){ let fM=metaActive(), fS=salesActive().filter(s=>s.meta);
   return {fM,fS}; }
 function selDim(dim,key,ctrl){
   const sets={C:STATE.mSelC,A:STATE.mSelA,D:STATE.mSelAd}, s=sets[dim];
+  /* Drill-down Campanha → Conjunto → Anúncio: o clique simples mantém as seleções
+     dos níveis ACIMA (o mesmo anúncio roda em vários conjuntos/campanhas) e limpa
+     o próprio nível e os de baixo. */
+  const order=['C','A','D'], lower=order.slice(order.indexOf(dim)+1);
   if(ctrl){ s.has(key)?s.delete(key):s.add(key); }
-  else { const sole=s.has(key)&&s.size===1&&!Object.entries(sets).some(([k2,x])=>k2!==dim&&x.size);
-    Object.values(sets).forEach(x=>x.clear()); if(!sole) s.add(key); }
+  else { const sole=s.has(key)&&s.size===1&&!lower.some(k2=>sets[k2].size);
+    s.clear(); lower.forEach(k2=>sets[k2].clear()); if(!sole) s.add(key); }
   renderMeta();
 }
 function metaPrevTotals(pw){

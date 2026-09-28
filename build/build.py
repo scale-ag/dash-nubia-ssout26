@@ -254,6 +254,10 @@ def process(meta_rows, sales_rows):
     # venda à campanha errada. Guardar os nomes
     # do Meta também alinha a venda à mesma linha do gasto nas tabelas.
     ad_map = {}
+    # (campanha, conjunto, anúncio) -> (campanha, conjunto) reais. O mesmo anúncio
+    # roda em VÁRIOS conjuntos da mesma campanha (ex.: LP-B/LP-C/LP-D); sem o
+    # conjunto na chave, a venda cairia sempre no primeiro conjunto encontrado.
+    ad_map_full = {}
     # Anúncio (nome, ex. "AD01") -> 1 permalink do Instagram. "Qualquer um
     # correlato" ao anúncio serve (o mesmo criativo pode rodar em várias
     # campanhas); guardamos o primeiro link não-vazio encontrado.
@@ -269,6 +273,7 @@ def process(meta_rows, sales_rows):
         key = (norm(camp), norm(ad))
         if key not in ad_map:
             ad_map[key] = (camp, adset)
+        ad_map_full.setdefault((norm(camp), norm(adset), norm(ad)), (camp, adset))
         link = cell(row, midx["link"])
         if link and ad not in ad_links:
             ad_links[ad] = link
@@ -327,13 +332,14 @@ def process(meta_rows, sales_rows):
         main = is_main_product(prod)
         # Match com o Meta = campanha + anúncio juntos (o mesmo Ad Name se repete
         # entre campanhas; casar só pelo anúncio atribui a venda à campanha errada).
-        meta_key = (norm(sale_camp), norm(ad))
-        meta_hit = ad_map.get(meta_key)
-        # Parametrizador com utm_campaign/utm_medium INVERTIDOS (a campanha do
-        # Meta vem em utm_medium e o conjunto em utm_campaign): tenta o par
-        # utm_medium + anúncio. Sem efeito quando as UTMs estão corretas.
-        if meta_hit is None:
-            meta_hit = ad_map.get((norm(cell(row, sidx["utm_medium"])), norm(ad)))
+        u_camp, u_med, u_ad = norm(sale_camp), norm(cell(row, sidx["utm_medium"])), norm(ad)
+        # Ordem: campanha+conjunto+anúncio exatos (UTMs normais e depois
+        # utm_campaign/utm_medium INVERTIDOS, como no parametrizador deste
+        # cliente); só então campanha+anúncio, quando o conjunto não bate.
+        meta_hit = (ad_map_full.get((u_camp, u_med, u_ad))
+                    or ad_map_full.get((u_med, u_camp, u_ad))
+                    or ad_map.get((u_camp, u_ad))
+                    or ad_map.get((u_med, u_ad)))
         # Atribuição ao tráfego rastreado: produto principal OU par campanha+anúncio
         # que existe no Meta (captura orderbumps/upsells que carregam a UTM do anúncio).
         attributed = main or (meta_hit is not None)

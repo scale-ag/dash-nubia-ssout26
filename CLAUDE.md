@@ -146,6 +146,12 @@ ConvCHK (Vendas/Checkouts) · Faturamento · ROAS (Faturamento/Gasto) · Ticket 
   as linhas, se `COUNT_ALL_AS_PAID = True`).
 - **Específico deste cliente:** como a aba Vendas traz `utm_campaign`/`utm_medium`
   invertidos, o match também aceita `utm_medium` + `utm_content` (ver Pontos de atenção).
+- **Conjunto:** o mesmo anúncio roda em vários conjuntos da mesma campanha
+  (ex.: VID02 em LP-B/LP-C/LP-D). Por isso o `build.py` casa primeiro por
+  **campanha + conjunto + anúncio** e só cai para campanha + anúncio quando o
+  conjunto da UTM não existe no Meta (antes, a venda ia sempre para o 1º conjunto).
+- **Tabelas da aba Meta Ads:** o clique é um drill-down Campanha → Conjunto →
+  Anúncio (clicar num nível mantém a seleção dos níveis acima).
 - Se não houver coluna de Receita, não há Receita/ROAS/Ticket — ajuste o texto desta
   seção se o cliente tiver uma regra diferente.
 
