@@ -84,6 +84,11 @@ IA_WORKER_URL = cfg.IA_WORKER_URL
 # uns mandam o nome do anuncio em utm_content, outros em utm_term (e ai o
 # utm_content costuma trazer o POSICIONAMENTO). Ausente/vazio -> utm_content
 # (padrao do template). Casar pela coluna errada zera as atribuicoes.
+# utm_source que identifica venda do Meta Ads mesmo sem casar com um anúncio.
+META_UTM_SOURCES = tuple(getattr(cfg, "META_UTM_SOURCES", ()) or ("meta-ads", "meta_ads", "meta ads", "facebook", "instagram", "fb", "ig"))
+# Sigla das campanhas (ex.: "SS-OUT26"), usada para achar a campanha nas UTMs.
+SIGLA = getattr(cfg, "SIGLA", "") or ""
+META_UNKNOWN = "(Meta — não identificado)"
 _AD_UTM_VALIDAS = ("utm_content", "utm_term", "utm_medium")
 AD_UTM_COLUMN = getattr(cfg, "AD_UTM_COLUMN", "") or "utm_content"
 if AD_UTM_COLUMN not in _AD_UTM_VALIDAS:
@@ -304,6 +309,7 @@ def process(meta_rows, sales_rows):
          "utm_term": ["utm term", "utm_term"],
          "utm_campaign": ["utm campaign", "utm_campaign"],
          "utm_medium": ["utm medium", "utm_medium"],
+         "utm_source": ["utm source", "utm_source"],
          "status": ["status"]},
         # Fallback posicional só p/ colunas que existem nesta planilha
         # (Produto·Nome·Email·Data·Valor·Taxas·Faturamento). Sem fallback p/
@@ -312,6 +318,17 @@ def process(meta_rows, sales_rows):
         # UTM nomeadas, o match por nome acima as detecta normalmente.
         {"created": 3, "name": 1, "email": 2, "prod": 0, "val": 6},
     )
+
+    # Campanhas reais do Meta (normalizadas) — para decidir qual UTM traz a
+    # campanha quando a venda é do Meta mas não casa com nenhum anúncio.
+    meta_camps = {norm(m["camp"]) for m in meta}
+
+    def meta_source(src: str) -> bool:
+        s = norm(src)
+        return any(s == norm(x) for x in META_UTM_SOURCES)
+
+    def placeholder(v: str) -> bool:
+        return "{{" in v or "}}" in v
 
     sales = []
     for row in sales_rows[1:]:
@@ -342,13 +359,29 @@ def process(meta_rows, sales_rows):
                     or ad_map.get((u_med, u_ad)))
         # Atribuição ao tráfego rastreado: produto principal OU par campanha+anúncio
         # que existe no Meta (captura orderbumps/upsells que carregam a UTM do anúncio).
-        attributed = main or (meta_hit is not None)
+        # Venda de tráfego pago pelo utm_source (ex.: "Meta-Ads") mesmo SEM casar
+        # com um anúncio da planilha do Meta (UTM quebrada com {{...}}, campanha
+        # que a extração do Meta não trouxe etc.). Conta como Meta Ads.
+        meta_src = meta_source(cell(row, sidx["utm_source"]))
+        attributed = main or (meta_hit is not None) or meta_src
         if not attributed:
             continue
         # Quando casa com o Meta, usa a campanha/conjunto REAIS do Meta (mantém a
         # venda na mesma linha do gasto nas tabelas). Senão, usa as UTMs da venda.
         if meta_hit is not None:
             camp, adset = meta_hit
+        elif meta_src:
+            v_camp, v_med = cell(row, sidx["utm_campaign"]), cell(row, sidx["utm_medium"])
+            if placeholder(v_camp + v_med + ad) or not (v_camp or v_med):
+                camp, adset, ad = META_UNKNOWN, META_UNKNOWN, META_UNKNOWN
+            elif norm(v_med) in meta_camps and norm(v_camp) not in meta_camps:
+                camp, adset = v_med, v_camp or "(sem conjunto)"      # UTMs invertidas
+            elif norm(v_camp) in meta_camps:
+                camp, adset = v_camp, v_med or "(sem conjunto)"
+            elif SIGLA and norm(v_med).startswith(norm(SIGLA)) and not norm(v_camp).startswith(norm(SIGLA)):
+                camp, adset = v_med, v_camp or "(sem conjunto)"      # invertidas, campanha fora do Meta
+            else:
+                camp, adset = v_camp or "(sem campanha)", v_med or "(sem conjunto)"
         else:
             camp = sale_camp
             adset = cell(row, sidx["utm_medium"]) or "(sem conjunto)"
@@ -361,7 +394,7 @@ def process(meta_rows, sales_rows):
             # meta=1 quando a venda casa com campanha+anúncio real do Meta (tráfego
             # pago). Vendas do produto principal sem esse match (orgânico/direto, ou
             # UTM sem anúncio identificável) têm meta=0.
-            "meta": 1 if meta_hit is not None else 0,
+            "meta": 1 if (meta_hit is not None or meta_src) else 0,
             "nm": first_last_initial(cell(row, sidx["name"])),
             "em": mask_email(cell(row, sidx["email"])),
         })
@@ -470,6 +503,9 @@ def main():
     print(f"  periodo : {b['date_min']} -> {b['date_max']}", file=sys.stderr)
     print(f"  meta    : {len(data['meta'])} linhas", file=sys.stderr)
     print(f"  sales   : {len(data['sales'])} linhas (funil) · Vendas(principal): {vendas} · Fat: R$ {fat:,.2f}", file=sys.stderr)
+    nmeta = sum(s["meta"] for s in data["sales"])
+    nunk = sum(1 for s in data["sales"] if s["meta"] and s["camp"] == META_UNKNOWN)
+    print(f"  meta ads: {nmeta} vendas atribuídas ao Meta ({nunk} sem anúncio identificado)", file=sys.stderr)
     print(f"  out     : {args.out}", file=sys.stderr)
 
 

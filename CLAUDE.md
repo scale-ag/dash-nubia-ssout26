@@ -150,6 +150,12 @@ ConvCHK (Vendas/Checkouts) · Faturamento · ROAS (Faturamento/Gasto) · Ticket 
   (ex.: VID02 em LP-B/LP-C/LP-D). Por isso o `build.py` casa primeiro por
   **campanha + conjunto + anúncio** e só cai para campanha + anúncio quando o
   conjunto da UTM não existe no Meta (antes, a venda ia sempre para o 1º conjunto).
+- **`utm_source = Meta-Ads` (config `META_UTM_SOURCES`):** venda com esse source
+  conta como Meta Ads (`meta=1`) **mesmo sem casar** com um anúncio da planilha.
+  Campanha/conjunto vêm das UTMs (tratando a inversão; `SIGLA` ajuda a achar a
+  campanha); UTM quebrada (`{{adset.name}}`…) cai em "(Meta — não identificado)".
+  Casos vistos em 15/10/2026: anúncios com parâmetros de URL não substituídos e a
+  campanha de remarketing `E5-RMK`, que a extração do Meta não trazia.
 - **Tabelas da aba Meta Ads:** o clique é um drill-down Campanha → Conjunto →
   Anúncio (clicar num nível mantém a seleção dos níveis acima).
 - Se não houver coluna de Receita, não há Receita/ROAS/Ticket — ajuste o texto desta

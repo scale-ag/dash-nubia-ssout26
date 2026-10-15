@@ -59,6 +59,12 @@ AD_UTM_COLUMN = "utm_content"
 # Núbia: a aba Vendas não tem coluna Status — toda linha é venda concretizada.
 COUNT_ALL_AS_PAID = True
 
+# Vendas com utm_source = Meta-Ads contam como tráfego do Meta mesmo sem casar
+# com um anúncio da planilha (UTM quebrada {{...}}, campanha fora da extração).
+META_UTM_SOURCES = ("meta-ads",)
+# Sigla das campanhas deste funil (usada para achar a campanha nas UTMs).
+SIGLA = "SS-OUT26"
+
 # ==========================================================================
 # 3) RÓTULOS EXIBIDOS NA INTERFACE
 # ==========================================================================
