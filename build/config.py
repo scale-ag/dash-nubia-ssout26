@@ -108,5 +108,8 @@ BF_SPREADSHEET_ID = "1pD3Q4LOSPDWGfCG0xAIrdPOnCzWmOlhSM3d5xQMObnU"
 BF_GID_META = "0"
 BF_LEADS_SPREADSHEET_ID = "1RrlEKrKqvoweVriQv6M2j7-FZdkKb4DydVoMa-9IOy8"
 BF_GID_LEADS = "0"
+# Aba "Seguidores IG": campanhas de seguidores, mesma planilha do Adveronix.
+SEG_LABEL = "Seguidores IG"
+SEG_GID = "1524023057"
 # CPL alvo em R$ (0 = sem código de cor no CPL)
 BF_CPL_TARGET = 0.0

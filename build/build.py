@@ -107,6 +107,10 @@ BF_SUB = getattr(cfg, "BF_SUB", "")
 BF_SIGLA = getattr(cfg, "BF_SIGLA", "")
 BF_CPL_TARGET = float(getattr(cfg, "BF_CPL_TARGET", 0) or 0)
 BF_META_URL = EXPORT_URL.format(sid=getattr(cfg, "BF_SPREADSHEET_ID", ""), gid=getattr(cfg, "BF_GID_META", "0"))
+# Aba de seguidores do Instagram (mesma planilha do Adveronix, outra aba).
+SEG_LABEL = getattr(cfg, "SEG_LABEL", "Seguidores IG")
+SEG_URL = (EXPORT_URL.format(sid=getattr(cfg, "SEG_SPREADSHEET_ID", "") or getattr(cfg, "BF_SPREADSHEET_ID", ""),
+                             gid=cfg.SEG_GID) if getattr(cfg, "SEG_GID", "") else "")
 BF_LEADS_URL = (EXPORT_URL.format(sid=cfg.BF_LEADS_SPREADSHEET_ID, gid=getattr(cfg, "BF_GID_LEADS", "0"))
                 if getattr(cfg, "BF_LEADS_SPREADSHEET_ID", "") else "")
 META_CSV_URL = EXPORT_URL.format(sid=SPREADSHEET_ID, gid=GID_META)
@@ -482,7 +486,9 @@ def process_bf(meta_rows, lead_rows):
         ad = cell(row, mi["ad"]) or "(sem anúncio)"
         full.setdefault((norm(camp), norm(adset), norm(ad)), (camp, adset, ad))
         by_ad.setdefault((norm(camp), norm(ad)), (camp, adset, ad))
-        meta.append({"d": parse_date(cell(row, mi["day"])), "camp": camp, "adset": adset, "ad": ad,
+        # BF = campanhas com a sigla do lançamento (as demais da aba contam só na Visão Geral)
+        is_bf = (not BF_SIGLA) or norm(BF_SIGLA) in norm(camp)
+        meta.append({"d": parse_date(cell(row, mi["day"])), "camp": camp, "adset": adset, "ad": ad, "bf": 1 if is_bf else 0,
                      "sp": round(to_float(cell(row, mi["spent"])), 4),
                      "im": to_float(cell(row, mi["impr"])), "cl": to_float(cell(row, mi["clicks"])),
                      "pv": to_float(cell(row, mi["pv"])), "lp": to_float(cell(row, mi["leads"]))})
@@ -529,11 +535,38 @@ def process_bf(meta_rows, lead_rows):
             leads.append({"d": parse_lead_date(cell(r, li["d"])), "src": src or "(sem origem)",
                           "camp": camp, "adset": adset, "ad": ad,
                           "meta": 1 if is_meta else 0, "hit": 1 if hit else 0})
-    return {"meta": meta, "leads": leads, "info": info,
+    return {"meta": meta, "leads": leads, "info": info, "seg": [], "seg_label": SEG_LABEL,
             "label": BF_LABEL, "sub": BF_SUB, "sigla": BF_SIGLA, "cpl_target": BF_CPL_TARGET}
 
 
-def load_bf(meta_file=None, leads_file=None):
+def process_seg(rows):
+    """Campanhas de seguidores do Instagram (Adveronix): gasto, impressões, cliques, seguidores."""
+    if not rows:
+        return []
+    si = header_index(
+        rows[0],
+        {"day": ["day", "data", "date"], "campaign": ["campaign name", "campaign"],
+         "adset": ["ad set name", "adset", "ad set"], "ad": ["ad name"],
+         "spent": ["amount spent", "valor gasto", "gasto", "spend"],
+         "impr": ["impressions", "impress"], "clicks": ["link clicks", "clicks", "cliques"],
+         "fol": ["seguidores", "followers", "follows", "instagram follows", "profile follows"]},
+        {"day": 0, "campaign": 1},
+    )
+    out = []
+    for row in rows[1:]:
+        if not any((c or "").strip() for c in row):
+            continue
+        out.append({"d": parse_date(cell(row, si["day"])),
+                    "camp": cell(row, si["campaign"]) or "(sem campanha)",
+                    "adset": cell(row, si["adset"]) or "(sem conjunto)",
+                    "ad": cell(row, si["ad"]) or "(sem anúncio)",
+                    "sp": round(to_float(cell(row, si["spent"])), 4),
+                    "im": to_float(cell(row, si["impr"])), "cl": to_float(cell(row, si["clicks"])),
+                    "fol": to_float(cell(row, si["fol"]))})
+    return out
+
+
+def load_bf(meta_file=None, leads_file=None, seg_file=None):
     """Nunca derruba o build principal: falha de leitura vira aviso no log."""
     if not BF_ENABLED:
         return None
@@ -549,7 +582,13 @@ def load_bf(meta_file=None, leads_file=None):
         except Exception as e:
             print(f"AVISO: não consegui ler a planilha de Leads da aba {BF_LABEL} "
                   f"(está como 'Qualquer pessoa com o link pode ver'?): {e}", file=sys.stderr)
-    return process_bf(m_rows, l_rows)
+    data = process_bf(m_rows, l_rows)
+    if SEG_URL or seg_file:
+        try:
+            data["seg"] = process_seg(load_rows(SEG_URL, seg_file))
+        except Exception as e:
+            print(f"AVISO: não consegui ler a aba de {SEG_LABEL}: {e}", file=sys.stderr)
+    return data
 
 
 # --------------------------------------------------------------------------- #
@@ -602,6 +641,7 @@ def main():
     ap.add_argument("--sales-file")
     ap.add_argument("--bf-meta-file")
     ap.add_argument("--bf-leads-file")
+    ap.add_argument("--seg-file")
     ap.add_argument("--template", default="build/template.html")
     ap.add_argument("--out", default="dist/index.html")
     args = ap.parse_args()
@@ -609,10 +649,10 @@ def main():
     meta_rows = load_rows(META_CSV_URL, args.meta_file)
     sales_rows = load_rows(SALES_CSV_URL, args.sales_file)
     data = process(meta_rows, sales_rows)
-    data["bf"] = load_bf(args.bf_meta_file, args.bf_leads_file)
+    data["bf"] = load_bf(args.bf_meta_file, args.bf_leads_file, args.seg_file)
     if data["bf"]:
         # o seletor de período cobre também as datas do lançamento
-        bd = [x["d"] for x in data["bf"]["meta"] + data["bf"]["leads"] if x["d"]]
+        bd = [x["d"] for x in data["bf"]["meta"] + data["bf"]["leads"] + data["bf"]["seg"] if x["d"]]
         if bd:
             b0 = data["build"]
             b0["date_min"] = min([d for d in (b0["date_min"], min(bd)) if d])
@@ -645,6 +685,9 @@ def main():
               f"leads {nl} (Meta {nlm}, casados c/ anúncio {nh}) · coluna do anúncio: {bf['info']['ad_col']}"
               + ("" if bf["info"]["leads_ok"] else " · SEM planilha de leads (usando leads do pixel)"),
               file=sys.stderr)
+        sg = bf["seg"]
+        print(f"  {bf['seg_label']}: {len(sg)} linhas · gasto R$ {sum(x['sp'] for x in sg):,.2f} · "
+              f"seguidores {sum(x['fol'] for x in sg):,.0f}", file=sys.stderr)
     print(f"  out     : {args.out}", file=sys.stderr)
 
 

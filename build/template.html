@@ -23,11 +23,9 @@
     <div class="logo"><div class="logo-main" id="logoMain"></div><div class="logo-sub" id="logoSub"></div></div>
     <div class="sec">Dashboards</div>
     <div class="nav-item active" data-page="geral"><span class="ic">◱</span> Visão Geral</div>
-    <div class="nav-item" data-page="meta"><span class="ic">◨</span> Meta Ads</div>
-    <div class="nav-item" data-page="rel"><span class="ic">▤</span> Relatórios</div>
-    <div class="nav-item" data-page="ia"><span class="ic">✦</span> IA Insights</div>
-    <div class="sec" id="bfNavSec" hidden>Lançamentos</div>
     <div class="nav-item" data-page="bf" id="bfNav" hidden><span class="ic">★</span> <span id="bfNavLabel">Black Friday</span></div>
+    <div class="nav-item" data-page="seg" id="segNav" hidden><span class="ic">♥</span> <span id="segNavLabel">Seguidores IG</span></div>
+    <div class="nav-item" data-page="ia"><span class="ic">✦</span> IA Insights</div>
     <div class="foot">Somente leitura · atualiza ~30 min<br><span id="buildFoot"></span></div>
   </aside>
 
@@ -69,139 +67,34 @@
     </div>
 
     <div class="page-content">
-      <!-- ===================== PÁGINA 1: VISÃO GERAL ===================== -->
+      <!-- ===================== PÁGINA 1: VISÃO GERAL (todas as campanhas) ===================== -->
       <div class="page active" id="page-geral">
-        <h2 class="sec-title">Funil &amp; evolução diária</h2>
-        <div class="grid funnel-grid">
-          <div class="card"><div class="funnel" id="geralFunnel"></div>
-            <p class="note">Vendas e Faturamento = <b>totais</b> (todas as vendas). Vendas/CAC/Ticket = produto principal (<span id="mainProdNoteG"></span>); conversões (CR, VisCHK, ConvCHK) = <b>só Meta Ads</b>.</p>
-          </div>
-          <div class="panel">
-            <div class="panel-chart"><h3>Evolução diária</h3><p class="hint">Vendas (barras) · Gasto (vermelha) · Faturamento (verde) · ROAS (linha preta, eixo próprio). Vendas/Faturamento = totais.</p><div class="chart-box"><canvas id="gCombo"></canvas></div></div>
-            <div class="tbl-wrap tbl-normal"><table class="dt" id="gDaily"></table></div>
-            <p class="note" style="padding:10px 15px 12px">Vendas e Faturamento = <b>totais</b> (todas as vendas). Conversões (CR, VisCHK, ConvCHK) consideram <b>apenas Meta Ads</b>. Heatmap por coluna · último dia no topo · clique numa data para filtrar (Ctrl = várias).</p>
-          </div>
+        <h2 class="sec-title">Resumo geral · todas as campanhas</h2>
+        <div class="kpis n1" id="gKpis"></div>
+
+        <h2 class="sec-title">Por objetivo</h2>
+        <div class="card" style="padding:0">
+          <div class="tbl-wrap"><table class="dt" id="gObj"></table></div>
+          <p class="note" style="padding:10px 15px 12px"><b>Seguidores</b> = campanhas de seguidores do Instagram (custo por seguidor). <b>Captação</b> = campanhas de leads (CPL). Total = soma de todas as campanhas da planilha.</p>
+        </div>
+
+        <h2 class="sec-title">Evolução diária</h2>
+        <div class="panel">
+          <div class="panel-chart"><h3>Gasto por objetivo, seguidores e leads</h3><p class="hint">Gasto empilhado por objetivo (barras, R$) · Seguidores e Leads (linhas, eixo próprio)</p><div class="chart-box"><canvas id="gEvo"></canvas></div></div>
+          <div class="tbl-wrap tbl-normal"><table class="dt" id="gDaily"></table></div>
+          <p class="note" style="padding:10px 15px 12px">Último dia no topo · clique numa data para filtrar (Ctrl = várias).</p>
         </div>
 
         <h2 class="sec-title">Indicadores por dia</h2>
         <div class="funnel-charts">
-          <div class="card"><h3>CPM e CTR por dia</h3><p class="hint">CPM (R$, esq.) · CTR (%, dir.)</p><div class="chart-box chart-sm"><canvas id="gCpmCtr"></canvas></div></div>
-          <div class="card"><h3>Connect Rate e VisCHK por dia</h3><p class="hint">CR = Page Views/Cliques · VisCHK = Checkouts/Page Views</p><div class="chart-box chart-sm"><canvas id="gCrVis"></canvas></div></div>
-          <div class="card"><h3>ConvLP e ConvCHK por dia</h3><p class="hint">ConvLP = Vendas/Page Views · ConvCHK = Vendas/Checkouts (Meta)</p><div class="chart-box chart-sm"><canvas id="gConv"></canvas></div></div>
-          <div class="card" style="padding:0"><div style="padding:14px 15px 4px"><h3>Vendas por produto</h3><p class="hint" style="margin:0"><span id="mainProdNoteProdG"></span> = 100% · demais em % (todas as vendas)</p></div><div class="tbl-wrap" style="max-height:190px"><table class="dt" id="gProd"></table></div></div>
+          <div class="card"><h3>Custo por seguidor e CPL</h3><p class="hint">Custo por seguidor (esq.) · CPL (dir.)</p><div class="chart-box chart-sm"><canvas id="gCost"></canvas></div></div>
+          <div class="card"><h3>CPM e CTR (todas as campanhas)</h3><p class="hint">CPM (R$, esq.) · CTR (%, dir.)</p><div class="chart-box chart-sm"><canvas id="gCpmCtr"></canvas></div></div>
         </div>
+
+        <h2 class="sec-title">Campanhas</h2>
+        <div class="card" style="padding:0"><div class="tbl-wrap tbl-normal"><table class="dt" id="gCamp"></table></div></div>
       </div>
 
-      <!-- ===================== PÁGINA 2: META ADS ===================== -->
-      <div class="page" id="page-meta">
-        <h2 class="sec-title">Funil &amp; combinação diária</h2>
-        <div class="grid funnel-grid">
-          <div class="card"><div class="funnel" id="metaFunnel"></div>
-            <p class="note">Considera <b>apenas vendas atribuídas ao Meta Ads</b> (UTM Content = Ad Name). <b>Vendas/CAC/ConvCHK/Ticket</b> = produto principal (<span id="mainProdNote"></span>); <b>Faturamento/ROAS</b> = todos os produtos do funil (orderbumps/upsells).</p>
-          </div>
-          <div class="panel">
-            <div class="panel-chart"><h3>Combinação diária</h3><p class="hint">Vendas (barras) · Gasto (vermelha) · Faturamento (verde) · ROAS (linha preta, eixo próprio) — só Meta Ads.</p><div class="chart-box"><canvas id="mCombo"></canvas></div></div>
-            <div class="tbl-wrap tbl-normal"><table class="dt" id="tDaily"></table></div>
-            <p class="note" style="padding:10px 15px 12px">Todos os valores consideram <b>apenas Meta Ads</b>. Heatmap por coluna · último dia no topo · clique numa data para filtrar (Ctrl = várias).</p>
-          </div>
-        </div>
-
-        <h2 class="sec-title">Indicadores por dia</h2>
-        <div class="funnel-charts">
-          <div class="card"><h3>CPM e CTR por dia</h3><p class="hint">CPM (R$, esq.) · CTR (%, dir.)</p><div class="chart-box chart-sm"><canvas id="mCpmCtr"></canvas></div></div>
-          <div class="card"><h3>Connect Rate e VisCHK por dia</h3><p class="hint">CR = Page Views/Cliques · VisCHK = Checkouts/Page Views</p><div class="chart-box chart-sm"><canvas id="mCrVis"></canvas></div></div>
-          <div class="card"><h3>ConvLP e ConvCHK por dia</h3><p class="hint">ConvLP = Vendas/Page Views · ConvCHK = Vendas/Checkouts</p><div class="chart-box chart-sm"><canvas id="mConv"></canvas></div></div>
-        </div>
-
-        <h2 class="sec-title">Faturamento por anúncio &amp; vendas por produto</h2>
-        <div class="funnel-charts">
-          <div class="card"><h3>Faturamento por anúncio</h3><p class="hint">Top 10 · utm_content · só Meta Ads</p><div class="chart-box chart-sm"><canvas id="mContent"></canvas></div></div>
-          <div class="card" style="padding:0"><div style="padding:14px 15px 4px"><h3>Vendas por produto</h3><p class="hint" style="margin:0"><span id="mainProdNoteProdM"></span> = 100% · só Meta Ads</p></div><div class="tbl-wrap" style="max-height:190px"><table class="dt" id="mProd"></table></div></div>
-        </div>
-
-        <h2 class="sec-title">Otimização · Campanha → Conjunto → Anúncio</h2>
-        <div class="table-chart-pair">
-          <div class="thead-title">Campanhas</div>
-          <div class="tbl-wrap tbl-normal"><table class="dt" id="tCamp"></table></div>
-          <div class="pair-chart"><div class="pc-title">CAC por campanha, por dia</div><canvas id="chCamp"></canvas></div>
-        </div>
-        <div class="table-chart-pair">
-          <div class="thead-title">Conjuntos (Ad Sets)</div>
-          <div class="tbl-wrap tbl-normal"><table class="dt" id="tAdset"></table></div>
-          <div class="pair-chart"><div class="pc-title">CAC por conjunto, por dia</div><canvas id="chAdset"></canvas></div>
-        </div>
-        <div class="table-chart-pair">
-          <div class="thead-title">Anúncios</div>
-          <div class="tbl-wrap tbl-double"><table class="dt" id="tAd"></table></div>
-          <div class="pair-chart"><div class="pc-title">CAC por anúncio, por dia</div><canvas id="chAd"></canvas></div>
-        </div>
-
-        <h2 class="sec-title">Compradores <span class="pill q" id="qCount"></span></h2>
-        <div class="card" style="padding:0">
-          <div class="tbl-wrap" style="max-height:360px"><table class="dt" id="tQual"></table></div>
-          <p class="note" style="padding:10px 15px">E‑mail <b>mascarado</b> (página pública). Só vendas atribuídas ao Meta Ads (produto principal + orderbumps/upsells).</p>
-        </div>
-      </div>
-
-      <!-- ===================== PÁGINA: RELATÓRIOS ===================== -->
-      <div class="page" id="page-rel">
-        <div class="rel-head">
-          <div>
-            <h2 class="rel-title">Relatório · <span id="relPeriodName">Período</span></h2>
-            <p class="rel-sub" id="relPeriodRange"></p>
-          </div>
-          <div class="rel-legend">
-            <span class="rel-legend-lbl">Metas (CAC/ROAS):</span>
-            <span class="rel-chip c-red">Muito abaixo</span>
-            <span class="rel-chip c-yellow">Pouco abaixo</span>
-            <span class="rel-chip c-green">Na meta / acima</span>
-            <span class="rel-chip c-cyan">Muito acima</span>
-          </div>
-        </div>
-
-        <h2 class="sec-title">Visão geral</h2>
-        <div class="rel-ov">
-          <div class="rel-ov-block">
-            <div class="rel-ov-head">Visão Geral Total <span>todas as vendas</span></div>
-            <div class="rel-cards" id="relCardsTotal"></div>
-          </div>
-          <div class="rel-ov-block">
-            <div class="rel-ov-head">Visão Geral Tráfego <span>apenas Meta Ads</span></div>
-            <div class="rel-cards" id="relCardsAds"></div>
-          </div>
-        </div>
-
-        <h2 class="sec-title">Funil dia a dia</h2>
-        <div class="card" style="padding:0">
-          <div class="tbl-wrap tbl-normal"><table class="dt rel-dt" id="relDaily"></table></div>
-          <p class="note" style="padding:10px 15px">Total = todas as vendas · Ads = só Meta Ads (separados pela barra vertical). <b>CAC</b> e <b>ROAS</b> com <b>código de cor</b> conforme a meta. Último dia no topo.</p>
-        </div>
-
-        <h2 class="sec-title">Visão por campanha</h2>
-        <div class="card" style="padding:0">
-          <div class="tbl-wrap"><table class="dt rel-dt" id="relCamp"></table></div>
-          <p class="note" style="padding:10px 15px">Nome completo da campanha · só Meta Ads. CAC/ROAS com código de cor conforme a meta.</p>
-        </div>
-
-        <h2 class="sec-title">Anúncios · destaques e alertas</h2>
-        <div class="rel-ads-grid">
-          <div class="card" style="padding:0">
-            <div class="rel-ads-head good">▲ Top 5 anúncios</div>
-            <div class="tbl-wrap"><table class="dt rel-dt" id="relTop"></table></div>
-          </div>
-          <div class="card" style="padding:0">
-            <div class="rel-ads-head bad">▼ Piores 5 anúncios</div>
-            <div class="tbl-wrap"><table class="dt rel-dt" id="relWorst"></table></div>
-          </div>
-        </div>
-        <p class="note">Ranqueados por ROAS (e CAC como desempate) entre anúncios com gasto relevante no período. Link abre o criativo no Instagram.</p>
-
-        <h2 class="sec-title">Briefing do Gestor</h2>
-        <div class="rel-brief" id="relBrief"></div>
-        <p class="note" id="relBriefStamp"></p>
-      </div>
-
-      <!-- ===================== PÁGINA 3: IA INSIGHTS ===================== -->
       <!-- ===================== PÁGINA: LANÇAMENTO DE CAPTAÇÃO (Black Friday) ===================== -->
       <div class="page" id="page-bf">
         <div class="bf-alert" id="bfAlert" hidden></div>
@@ -249,6 +142,50 @@
           <div class="thead-title">Anúncios</div>
           <div class="tbl-wrap tbl-double"><table class="dt" id="bfAd"></table></div>
           <div class="pair-chart"><div class="pc-title">CPL por anúncio, por dia</div><canvas id="bfChAd"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ===================== PÁGINA: SEGUIDORES IG ===================== -->
+      <div class="page" id="page-seg">
+        <div class="bf-alert" id="segAlert" hidden></div>
+        <h2 class="sec-title">Resumo · seguidores do Instagram</h2>
+        <div class="kpis n1" id="segKpis"></div>
+
+        <h2 class="sec-title">Funil &amp; evolução diária</h2>
+        <div class="grid funnel-grid">
+          <div class="card"><div class="funnel" id="segFunnel"></div>
+            <p class="note"><b>Custo por seguidor</b> = Gasto ÷ Seguidores. <b>Taxa de seguir</b> = Seguidores ÷ Cliques.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-chart"><h3>Evolução diária</h3><p class="hint">Seguidores (barras) · Gasto (vermelha) · Custo por seguidor (linha preta, eixo próprio)</p><div class="chart-box"><canvas id="segCombo"></canvas></div></div>
+            <div class="tbl-wrap tbl-normal"><table class="dt" id="segDaily"></table></div>
+            <p class="note" style="padding:10px 15px 12px">Heatmap por coluna · último dia no topo · clique numa data para filtrar (Ctrl = várias).</p>
+          </div>
+        </div>
+
+        <h2 class="sec-title">Indicadores por dia</h2>
+        <div class="funnel-charts">
+          <div class="card"><h3>CPM e CTR por dia</h3><p class="hint">CPM (R$, esq.) · CTR (%, dir.)</p><div class="chart-box chart-sm"><canvas id="segCpmCtr"></canvas></div></div>
+          <div class="card"><h3>Custo por seguidor e CPC</h3><p class="hint">Custo por seguidor (esq.) · CPC (dir.)</p><div class="chart-box chart-sm"><canvas id="segCost"></canvas></div></div>
+          <div class="card"><h3>Seguidores por anúncio</h3><p class="hint">Top 10</p><div class="chart-box chart-sm"><canvas id="segAdBar"></canvas></div></div>
+          <div class="card"><h3>Taxa de seguir por dia</h3><p class="hint">Seguidores ÷ Cliques</p><div class="chart-box chart-sm"><canvas id="segRate"></canvas></div></div>
+        </div>
+
+        <h2 class="sec-title">Otimização · Campanha → Conjunto → Anúncio</h2>
+        <div class="table-chart-pair">
+          <div class="thead-title">Campanhas</div>
+          <div class="tbl-wrap tbl-normal"><table class="dt" id="segCamp"></table></div>
+          <div class="pair-chart"><div class="pc-title">Custo por seguidor por campanha, por dia</div><canvas id="segChCamp"></canvas></div>
+        </div>
+        <div class="table-chart-pair">
+          <div class="thead-title">Conjuntos (Ad Sets)</div>
+          <div class="tbl-wrap tbl-normal"><table class="dt" id="segAdset"></table></div>
+          <div class="pair-chart"><div class="pc-title">Custo por seguidor por conjunto, por dia</div><canvas id="segChAdset"></canvas></div>
+        </div>
+        <div class="table-chart-pair">
+          <div class="thead-title">Anúncios</div>
+          <div class="tbl-wrap tbl-double"><table class="dt" id="segAd"></table></div>
+          <div class="pair-chart"><div class="pc-title">Custo por seguidor por anúncio, por dia</div><canvas id="segChAd"></canvas></div>
         </div>
       </div>
 

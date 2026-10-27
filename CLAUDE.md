@@ -161,6 +161,22 @@ ConvCHK (Vendas/Checkouts) · Faturamento · ROAS (Faturamento/Gasto) · Ticket 
 - Se não houver coluna de Receita, não há Receita/ROAS/Ticket — ajuste o texto desta
   seção se o cliente tiver uma regra diferente.
 
+### Estrutura atual das abas (desde 27/10/2026)
+**Visão Geral → ★ Black Friday → ♥ Seguidores IG → IA Insights.** As abas *Meta Ads* e
+*Relatórios* (funil de vendas SS-OUT26) foram removidas a pedido do cliente; o build ainda
+lê as planilhas do SS-OUT26 (config obrigatória e usada pela IA Insights/relatórios), mas
+nenhuma aba as mostra.
+
+- **Visão Geral** = soma de **todas as campanhas** da planilha do Adveronix: aba de captação
+  (gid 0, todas as campanhas dela) + aba de seguidores (gid `1524023057`). KPIs: gasto total,
+  seguidores, custo por seguidor, leads, CPL, impressões, cliques; tabela **por objetivo**
+  (Seguidores × Captação), evolução diária (gasto empilhado + seguidores/leads), tabela de
+  campanhas com objetivo e custo por resultado.
+- **Black Friday** = só campanhas com a sigla `BF_SIGLA` (`BF26`) da aba de captação.
+- **Seguidores IG** = aba de seguidores (`SEG_GID`): Day · Campaign Name · Ad Name · Ad Set Name ·
+  Impressions · Link Clicks · Amount Spent · Seguidores · Custo por seguidor (este último é
+  ignorado; o custo é recalculado = Gasto ÷ Seguidores, com o imposto do toggle).
+
 ### Aba Black Friday (lançamento de captação · 11/11/2026)
 Aba extra **★ Black Friday** (menu "Lançamentos"), com dados próprios — não mistura
 com as abas do SS-OUT26. Config em `build/config.py` (bloco `BF_*`); lógica em
