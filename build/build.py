@@ -98,6 +98,17 @@ if AD_UTM_COLUMN not in _AD_UTM_VALIDAS:
     )
 
 EXPORT_URL = "https://docs.google.com/spreadsheets/d/{sid}/export?format=csv&gid={gid}"
+
+# Aba extra de LANÇAMENTO DE CAPTAÇÃO (ex.: Black Friday): Meta Ads (Adveronix)
+# + planilha de Leads com UTMs. Opcional — sem BF_SPREADSHEET_ID a aba some.
+BF_ENABLED = bool(getattr(cfg, "BF_SPREADSHEET_ID", ""))
+BF_LABEL = getattr(cfg, "BF_LABEL", "Captação")
+BF_SUB = getattr(cfg, "BF_SUB", "")
+BF_SIGLA = getattr(cfg, "BF_SIGLA", "")
+BF_CPL_TARGET = float(getattr(cfg, "BF_CPL_TARGET", 0) or 0)
+BF_META_URL = EXPORT_URL.format(sid=getattr(cfg, "BF_SPREADSHEET_ID", ""), gid=getattr(cfg, "BF_GID_META", "0"))
+BF_LEADS_URL = (EXPORT_URL.format(sid=cfg.BF_LEADS_SPREADSHEET_ID, gid=getattr(cfg, "BF_GID_LEADS", "0"))
+                if getattr(cfg, "BF_LEADS_SPREADSHEET_ID", "") else "")
 META_CSV_URL = EXPORT_URL.format(sid=SPREADSHEET_ID, gid=GID_META)
 SALES_CSV_URL = EXPORT_URL.format(sid=SPREADSHEET_ID_SALES, gid=GID_SALES)
 BRT = timezone(timedelta(hours=-3))   # horário de Brasília (exibição)
@@ -432,6 +443,116 @@ def process(meta_rows, sales_rows):
 
 
 # --------------------------------------------------------------------------- #
+# Lançamento de captação (aba Black Friday): Meta Ads × Leads
+# --------------------------------------------------------------------------- #
+def parse_lead_date(v: str) -> str | None:
+    """Datas da planilha de leads: ISO, 'dd/mm/aaaa hh:mm' ou serial do Sheets."""
+    s = (v or "").strip()
+    if not s:
+        return None
+    d = parse_date(s) or parse_date(s.split(" ")[0]) or parse_date(s.split("T")[0])
+    if d:
+        return d
+    if re.fullmatch(r"\d{5}([.,]\d+)?", s):          # serial (dias desde 1899-12-30)
+        base = datetime(1899, 12, 30)
+        return (base + timedelta(days=float(s.replace(",", ".")))).strftime("%Y-%m-%d")
+    return None
+
+
+def process_bf(meta_rows, lead_rows):
+    """Linhas cruas do Meta (Adveronix) e dos leads (só UTMs/data — sem PII)."""
+    mh = meta_rows[0] if meta_rows else []
+    mi = header_index(
+        mh,
+        {"day": ["day", "data", "date"], "campaign": ["campaign name", "campaign"],
+         "adset": ["ad set name", "adset", "ad set"], "ad": ["ad name"],
+         "spent": ["amount spent", "valor gasto", "gasto", "spend"],
+         "impr": ["impressions", "impress"], "clicks": ["link clicks", "clicks", "cliques"],
+         "pv": ["landing page views", "page views", "landing"],
+         "leads": ["leads", "lead", "results", "resultados"]},
+        {"day": 0, "campaign": 1, "adset": 2, "ad": 3},
+    )
+    meta = []
+    full, by_ad = {}, {}
+    for row in meta_rows[1:]:
+        if not any((c or "").strip() for c in row):
+            continue
+        camp = cell(row, mi["campaign"]) or "(sem campanha)"
+        adset = cell(row, mi["adset"]) or "(sem conjunto)"
+        ad = cell(row, mi["ad"]) or "(sem anúncio)"
+        full.setdefault((norm(camp), norm(adset), norm(ad)), (camp, adset, ad))
+        by_ad.setdefault((norm(camp), norm(ad)), (camp, adset, ad))
+        meta.append({"d": parse_date(cell(row, mi["day"])), "camp": camp, "adset": adset, "ad": ad,
+                     "sp": round(to_float(cell(row, mi["spent"])), 4),
+                     "im": to_float(cell(row, mi["impr"])), "cl": to_float(cell(row, mi["clicks"])),
+                     "pv": to_float(cell(row, mi["pv"])), "lp": to_float(cell(row, mi["leads"]))})
+    camps = {norm(m["camp"]) for m in meta}
+    ads = {norm(m["ad"]) for m in meta}
+
+    leads, info = [], {"leads_ok": bool(lead_rows), "ad_col": None}
+    if lead_rows:
+        lh = lead_rows[0]
+        li = header_index(
+            lh,
+            {"d": ["data_inscricao", "data de inscricao", "data_cadastro", "data", "date", "created",
+                   "carimbo", "timestamp", "criado"],
+             "src": ["utm_source", "utm source"], "camp": ["utm_campaign", "utm campaign"],
+             "med": ["utm_medium", "utm medium"], "cont": ["utm_content", "utm content"],
+             "term": ["utm_term", "utm term"]},
+            {},
+        )
+        body = [r for r in lead_rows[1:] if any((c or "").strip() for c in r)]
+        # Qual UTM carrega o Ad Name do Meta? A que mais bate com os anúncios reais.
+        score = {k: sum(1 for r in body if norm(cell(r, li[k])) in ads) for k in ("cont", "term", "med")}
+        ad_key = max(score, key=score.get) if any(score.values()) else "cont"
+        info["ad_col"] = {"cont": "utm_content", "term": "utm_term", "med": "utm_medium"}[ad_key]
+        for r in body:
+            if is_test_row(" ".join(str(c) for c in r)):
+                continue
+            u_c, u_m, u_a = cell(r, li["camp"]), cell(r, li["med"]), cell(r, li[ad_key])
+            nc, nm, na = norm(u_c), norm(u_m), norm(u_a)
+            hit = (full.get((nc, nm, na)) or full.get((nm, nc, na))
+                   or by_ad.get((nc, na)) or by_ad.get((nm, na)))
+            src = cell(r, li["src"])
+            is_meta = hit is not None or any(norm(src) == norm(x) for x in META_UTM_SOURCES)
+            if hit:
+                camp, adset, ad = hit
+            elif is_meta:
+                if "{{" in (u_c + u_m + u_a) or not (u_c or u_m):
+                    camp = adset = ad = META_UNKNOWN
+                elif nm in camps or (BF_SIGLA and nm.startswith(norm(BF_SIGLA)) and not nc.startswith(norm(BF_SIGLA))):
+                    camp, adset, ad = u_m, u_c or "(sem conjunto)", u_a or "(sem anúncio)"
+                else:
+                    camp, adset, ad = u_c or "(sem campanha)", u_m or "(sem conjunto)", u_a or "(sem anúncio)"
+            else:
+                camp, adset, ad = u_c or "(sem campanha)", u_m or "(sem conjunto)", u_a or "(sem anúncio)"
+            leads.append({"d": parse_lead_date(cell(r, li["d"])), "src": src or "(sem origem)",
+                          "camp": camp, "adset": adset, "ad": ad,
+                          "meta": 1 if is_meta else 0, "hit": 1 if hit else 0})
+    return {"meta": meta, "leads": leads, "info": info,
+            "label": BF_LABEL, "sub": BF_SUB, "sigla": BF_SIGLA, "cpl_target": BF_CPL_TARGET}
+
+
+def load_bf(meta_file=None, leads_file=None):
+    """Nunca derruba o build principal: falha de leitura vira aviso no log."""
+    if not BF_ENABLED:
+        return None
+    try:
+        m_rows = load_rows(BF_META_URL, meta_file)
+    except Exception as e:
+        print(f"AVISO: não consegui ler a planilha Meta da aba {BF_LABEL}: {e}", file=sys.stderr)
+        m_rows = []
+    l_rows = []
+    if BF_LEADS_URL or leads_file:
+        try:
+            l_rows = load_rows(BF_LEADS_URL, leads_file)
+        except Exception as e:
+            print(f"AVISO: não consegui ler a planilha de Leads da aba {BF_LABEL} "
+                  f"(está como 'Qualquer pessoa com o link pode ver'?): {e}", file=sys.stderr)
+    return process_bf(m_rows, l_rows)
+
+
+# --------------------------------------------------------------------------- #
 # Briefings do Gestor (aba Relatórios) — texto gerado por IA 1x/dia
 # --------------------------------------------------------------------------- #
 def load_briefings(path: str) -> dict:
@@ -479,6 +600,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--meta-file")
     ap.add_argument("--sales-file")
+    ap.add_argument("--bf-meta-file")
+    ap.add_argument("--bf-leads-file")
     ap.add_argument("--template", default="build/template.html")
     ap.add_argument("--out", default="dist/index.html")
     args = ap.parse_args()
@@ -486,6 +609,14 @@ def main():
     meta_rows = load_rows(META_CSV_URL, args.meta_file)
     sales_rows = load_rows(SALES_CSV_URL, args.sales_file)
     data = process(meta_rows, sales_rows)
+    data["bf"] = load_bf(args.bf_meta_file, args.bf_leads_file)
+    if data["bf"]:
+        # o seletor de período cobre também as datas do lançamento
+        bd = [x["d"] for x in data["bf"]["meta"] + data["bf"]["leads"] if x["d"]]
+        if bd:
+            b0 = data["build"]
+            b0["date_min"] = min([d for d in (b0["date_min"], min(bd)) if d])
+            b0["date_max"] = max([d for d in (b0["date_max"], max(bd)) if d])
 
     # Briefings do Gestor (texto por IA, gerado 1x/dia pela Routine) — lidos do
     # arquivo versionado ao lado do template. Sem chamada de API no build.
@@ -506,6 +637,14 @@ def main():
     nmeta = sum(s["meta"] for s in data["sales"])
     nunk = sum(1 for s in data["sales"] if s["meta"] and s["camp"] == META_UNKNOWN)
     print(f"  meta ads: {nmeta} vendas atribuídas ao Meta ({nunk} sem anúncio identificado)", file=sys.stderr)
+    bf = data.get("bf")
+    if bf:
+        nl = len(bf["leads"]); nlm = sum(x["meta"] for x in bf["leads"]); nh = sum(x["hit"] for x in bf["leads"])
+        sp = sum(x["sp"] for x in bf["meta"])
+        print(f"  {bf['label']:<8}: meta {len(bf['meta'])} linhas · gasto R$ {sp:,.2f} · "
+              f"leads {nl} (Meta {nlm}, casados c/ anúncio {nh}) · coluna do anúncio: {bf['info']['ad_col']}"
+              + ("" if bf["info"]["leads_ok"] else " · SEM planilha de leads (usando leads do pixel)"),
+              file=sys.stderr)
     print(f"  out     : {args.out}", file=sys.stderr)
 
 

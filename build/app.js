@@ -697,6 +697,194 @@ async function iaLoadLatest(){
 }
 function renderIA(){ iaStatusText(); iaRenderWin(); iaLoadLatest(); }
 
+/* ---------------- PAGE: Lançamento de captação (Black Friday) ----------------
+   Dados próprios (DATA.bf): Meta Ads do Adveronix + leads da página de captura.
+   bucket BF = {sp,im,cl,pv,lp, lm, lt}
+     lp = leads do pixel (gerenciador) · lm = leads da planilha atribuídos ao Meta
+     lt = todos os leads da planilha (qualquer origem)
+   Se a planilha de leads não estiver acessível, "Leads" usa o pixel. */
+const BF = DATA.bf || null;
+const BF_META = BF ? BF.meta : [], BF_LEADS = BF ? BF.leads : [];
+const BF_HAS_LEADS = !!(BF && BF.info && BF.info.leads_ok);
+const BF_UNKNOWN = '(Meta — não identificado)';
+const bfMetaActive  = ()=> BF_META.filter(m=>dateActive(m.d));
+const bfLeadsActive = ()=> BF_LEADS.filter(l=>dateActive(l.d));
+function bfBucket(){ return {sp:0,im:0,cl:0,pv:0,lp:0,lm:0,lt:0}; }
+function bfAddM(a,r){ a.sp+=r.sp; a.im+=r.im; a.cl+=r.cl; a.pv+=r.pv; a.lp+=r.lp; }
+function bfAddL(a,r){ a.lt+=1; if(r.meta) a.lm+=1; }
+/* "Leads" exibidos: planilha atribuída ao Meta (ou pixel, se não houver planilha) */
+const bfLeadsOf = a => BF_HAS_LEADS ? a.lm : a.lp;
+function bfDerive(a){ const g=a.sp*taxf(), L=bfLeadsOf(a);
+  return {gasto:g, leads:L, cpm:a.im?g/a.im*1000:null, ctr:a.im?a.cl/a.im:null, cpc:a.cl?g/a.cl:null,
+    cpv:a.pv?g/a.pv:null, cr:a.cl?a.pv/a.cl:null, cpl:L?g/L:null, conv:a.pv?L/a.pv:null,
+    cplp:a.lp?g/a.lp:null}; }
+function bfTotals(fM,fL){ const a=bfBucket(); fM.forEach(r=>bfAddM(a,r)); fL.forEach(r=>bfAddL(a,r)); return a; }
+function bfDaily(fM,fL){ const days={}; const g=d=>days[d]||(days[d]=Object.assign({d},bfBucket()));
+  fM.forEach(r=>{ if(r.d) bfAddM(g(r.d),r); }); fL.forEach(r=>{ if(r.d) bfAddL(g(r.d),r); });
+  return Object.values(days).sort((a,b)=>a.d<b.d?-1:1); }
+function bfAgg(fM,fL,dim){ const m={}; const g=k=>m[k]||(m[k]=bfBucket());
+  fM.forEach(r=>bfAddM(g(r[dim]),r)); fL.forEach(r=>{ if(r.meta) bfAddL(g(r[dim]),r); }); return m; }
+
+const BF_METRIC_COLS=[
+  {key:'gasto',label:'Gasto',type:'brl',heat:'gasto'},
+  {key:'impr',label:'Impressões',type:'int'},
+  {key:'cpm',label:'CPM',type:'brl'},
+  {key:'cliques',label:'Cliques',type:'int'},
+  {key:'cpc',label:'CPC',type:'brl'},
+  {key:'ctr',label:'CTR',type:'pct'},
+  {key:'pv',label:'Page Views',type:'int'},
+  {key:'cr',label:'CR',type:'pct'},
+  {key:'leads',label:'Leads',type:'int',heat:'fat'},
+  {key:'cpl',label:'CPL',type:'brl'},
+  {key:'conv',label:'Conv. página',type:'pct'},
+  {key:'lp',label:'Leads pixel',type:'int'},
+];
+function bfCells(a,d){ return {gasto:d.gasto, impr:a.im, cpm:d.cpm, cliques:a.cl, cpc:d.cpc, ctr:d.ctr,
+  pv:a.pv, cr:d.cr, leads:d.leads, cpl:d.cpl, conv:d.conv, lp:a.lp}; }
+const BF_DAILY_COLS=[{key:'date',label:'Data',type:'date'},{key:'wd',label:'Dia',type:'dim',w:64}].concat(BF_METRIC_COLS);
+const BF_HCOLS=[{key:'dim',label:'',type:'dim',big:true}].concat(BF_METRIC_COLS.map(c=>{const o={...c}; delete o.heat; return o;}));
+
+/* cor do CPL vs meta (verde ≤ meta · amarelo até +30% · vermelho acima) */
+function bfCplCls(v){ const t=BF&&BF.cpl_target; if(!t||v==null||!isFinite(v)) return '';
+  return v<=t?'rc-green':(v<=t*1.3?'rc-yellow':'rc-red'); }
+
+function bfFunnelSteps(t,tp){ const d=bfDerive(t), Pd=tp?bfDerive(tp):null, P=k=>tp?tp[k]:null;
+  return [
+    ['Gasto Total', brl(d.gasto), [], 'gasto', '--heat-gasto', deltaBadge(d.gasto, Pd?Pd.gasto:null, 'gasto')],
+    ['Impressões', intf(t.im), [['CPM',brl(d.cpm)]], 'impr', '--c6', deltaBadge(t.im, P('im'), 'im')],
+    ['Cliques', intf(t.cl), [['CPC',brl(d.cpc)],['CTR',pct(d.ctr)]], 'cl', '--c1', deltaBadge(t.cl, P('cl'), 'cl')],
+    ['Page Views', intf(t.pv), [['CPV',brl(d.cpv)],['CR',pct(d.cr)]], 'pv', '--c4', deltaBadge(t.pv, P('pv'), 'pv')],
+    ['Leads', intf(d.leads), [['CPL',brl(d.cpl),bfCplCls(d.cpl)],['Conv. página',pct(d.conv)]], 'fat', '--heat-fat', deltaBadge(d.leads, Pd?Pd.leads:null, 'leads')],
+  ]; }
+
+function bfCombo(id, dd){
+  destroy(id); const el=document.getElementById(id); if(!el) return;
+  const mut=cmuted(), gr=cgrid();
+  charts[id]=new Chart(el,{
+    data:{labels:dd.map(x=>x.d.slice(5)), datasets:[
+      {type:'bar',label:'Leads',data:dd.map(x=>bfLeadsOf(x)),backgroundColor:cvar('--chart-vendas'),yAxisID:'y',borderRadius:3,order:3},
+      {type:'line',label:'Gasto',data:dd.map(x=>+(x.sp*taxf()).toFixed(2)),borderColor:cvar('--chart-gasto'),backgroundColor:cvar('--chart-gasto'),yAxisID:'y1',borderWidth:2,pointRadius:2,tension:.25,order:2},
+      {type:'line',label:'CPL',data:dd.map(x=>{const L=bfLeadsOf(x);return L?+((x.sp*taxf())/L).toFixed(2):null;}),borderColor:cink(),backgroundColor:cink(),yAxisID:'y2',borderWidth:2,pointRadius:2,spanGaps:true,tension:.25,order:0},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:cink(),boxWidth:10,usePointStyle:true,font:{size:11}}},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.dataset.yAxisID==='y'?intf(c.raw):brl(c.raw))}}},
+      scales:{x:{ticks:{color:mut,font:{size:10}},grid:{display:false}},
+        y:{position:'left',beginAtZero:true,ticks:{color:mut,font:{size:10}},grid:{color:gr},title:{display:true,text:'Leads',color:mut,font:{size:10}}},
+        y1:{position:'right',beginAtZero:true,ticks:{color:mut,font:{size:10}},grid:{display:false},title:{display:true,text:'Gasto R$',color:mut,font:{size:10}}},
+        y2:{position:'right',beginAtZero:true,ticks:{color:mut,font:{size:10},callback:v=>brl(v)},grid:{display:false},title:{display:true,text:'CPL',color:mut,font:{size:10}}}}}});
+}
+/* CPL por dia, 1 linha por item da dimensão (top 6 por gasto) */
+function bfCplDimChart(id, fM, fL, dim){
+  destroy(id); const el=document.getElementById(id); if(!el) return;
+  const spT={}; fM.forEach(r=>spT[r[dim]]=(spT[r[dim]]||0)+r.sp);
+  const items=Object.keys(spT).sort((a,b)=>spT[b]-spT[a]).slice(0,6);
+  const ds=new Set(); fM.forEach(r=>r.d&&ds.add(r.d)); const days=[...ds].sort();
+  const K=(c,d)=>c+'\u0001'+d, sp={}, ld={};
+  fM.forEach(r=>{ if(!r.d) return; sp[K(r[dim],r.d)]=(sp[K(r[dim],r.d)]||0)+r.sp;
+    if(!BF_HAS_LEADS) ld[K(r[dim],r.d)]=(ld[K(r[dim],r.d)]||0)+r.lp; });
+  if(BF_HAS_LEADS) fL.forEach(r=>{ if(!r.d||!r.meta) return; ld[K(r[dim],r.d)]=(ld[K(r[dim],r.d)]||0)+1; });
+  const PAL=chartPalette();
+  const sets=items.map((c,i)=>({label:c.length>22?c.slice(0,22)+'…':c,
+    data:days.map(d=>{const s=(sp[K(c,d)]||0)*taxf(), v=ld[K(c,d)]||0; return v?+(s/v).toFixed(2):null;}),
+    borderColor:PAL[i%PAL.length],backgroundColor:PAL[i%PAL.length],borderWidth:2,pointRadius:1.5,spanGaps:true,tension:.25}));
+  const mut=cmuted();
+  charts[id]=new Chart(el,{type:'line',data:{labels:days.map(x=>x.slice(5)),datasets:sets},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:cink(),boxWidth:8,font:{size:9}}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+brl(c.raw)}}},
+      scales:{x:{ticks:{color:mut,font:{size:9},maxRotation:0,autoSkip:true,autoSkipPadding:8},grid:{display:false}},
+              y:{beginAtZero:true,ticks:{color:mut,font:{size:9},callback:v=>brl(v)},grid:{color:cgrid()}}}}});
+}
+/* drill-down Campanha → Conjunto → Anúncio (mesma regra da aba Meta Ads) */
+STATE.bSelC=new Set(); STATE.bSelA=new Set(); STATE.bSelAd=new Set();
+function bfScope(ex){ let fM=bfMetaActive(), fL=bfLeadsActive().filter(l=>l.meta);
+  const f=(set,k)=>{ fM=fM.filter(r=>set.has(r[k])); fL=fL.filter(r=>set.has(r[k])); };
+  if(ex!=='C'&&STATE.bSelC.size) f(STATE.bSelC,'camp');
+  if(ex!=='A'&&STATE.bSelA.size) f(STATE.bSelA,'adset');
+  if(ex!=='D'&&STATE.bSelAd.size) f(STATE.bSelAd,'ad');
+  return {fM,fL}; }
+function bfSelDim(dim,key,ctrl){
+  const sets={C:STATE.bSelC,A:STATE.bSelA,D:STATE.bSelAd}, s=sets[dim];
+  const order=['C','A','D'], lower=order.slice(order.indexOf(dim)+1);
+  if(ctrl){ s.has(key)?s.delete(key):s.add(key); }
+  else { const sole=s.has(key)&&s.size===1&&!lower.some(k=>sets[k].size);
+    s.clear(); lower.forEach(k=>sets[k].clear()); if(!sole) s.add(key); }
+  renderBF();
+}
+function renderBF(){
+  if(!BF) return;
+  const fM=bfMetaActive(), fLall=bfLeadsActive();
+  const S=bfScope(null), t=bfTotals(S.fM, BF_HAS_LEADS?fLall.filter(l=>l.meta):[]);
+  /* lt (todas as origens) independe do drill de campanha */
+  t.lt=fLall.length;
+  const d=bfDerive(t);
+  const pw=prevWindow();
+  const tp=pw?bfTotals(BF_META.filter(m=>inRange(m.d,pw.from,pw.to)), BF_LEADS.filter(l=>l.meta&&inRange(l.d,pw.from,pw.to))):null;
+
+  /* aviso quando a planilha de leads não está acessível / sem dados no período */
+  const al=document.getElementById('bfAlert');
+  if(!BF_HAS_LEADS){ al.hidden=false; al.innerHTML='⚠️ A planilha de <b>Leads</b> não está acessível (compartilhe como <b>“Qualquer pessoa com o link pode ver”</b>). Enquanto isso, “Leads” usa o evento <b>Lead do pixel</b> do gerenciador.'; }
+  else if(!BF_META.length){ al.hidden=false; al.textContent='⚠️ A planilha do Meta Ads (Adveronix) não retornou linhas.'; }
+  else al.hidden=true;
+
+  const unk=fLall.filter(l=>l.meta&&l.camp===BF_UNKNOWN).length;
+  const metaShare=t.lt?(fLall.filter(l=>l.meta).length/t.lt):null;
+  document.getElementById('bfKpis').innerHTML=[
+    {label:'Gasto',val:brl(d.gasto),aux:'Meta Ads'+(STATE.tax?' · c/ imposto':'')},
+    {label:'Leads (Meta)',val:intf(d.leads),aux:BF_HAS_LEADS?'planilha de captura · UTMs':'evento Lead do pixel',hero:true},
+    {label:'CPL',val:`<span class="${bfCplCls(d.cpl)}">${brl(d.cpl)}</span>`,aux:BF&&BF.cpl_target?'meta '+brl(BF.cpl_target):'Gasto ÷ Leads'},
+    {label:'Leads totais',val:BF_HAS_LEADS?intf(t.lt):'-',aux:BF_HAS_LEADS?('Meta = '+pct(metaShare)+' do total'):'sem planilha de leads'},
+    {label:'Leads pixel',val:intf(t.lp),aux:'CPL pixel '+brl(d.cplp)},
+    {label:'Conv. página',val:pct(d.conv),aux:'Leads ÷ Page Views'},
+    {label:'CTR',val:pct(d.ctr),aux:'CPC '+brl(d.cpc)},
+    {label:'CPM',val:brl(d.cpm),aux:intf(t.im)+' impressões'},
+  ].map(kpiCard).join('') + (unk?`<p class="note" style="grid-column:1/-1">${unk} lead(s) do Meta com UTM quebrada (ex.: <code>{{ad.name}}</code>) contam como “${BF_UNKNOWN}”.</p>`:'');
+
+  renderFunnel('bfFunnel', bfFunnelSteps(t,tp));
+  const dd=bfDaily(S.fM, BF_HAS_LEADS?S.fL:[]);
+  bfCombo('bfCombo', dd);
+  const dl=dd.slice().reverse();
+  renderTable({id:'bfDaily', cols:BF_DAILY_COLS,
+    rows:dl.map(x=>({k:x.d, cells:Object.assign({date:x.d, wd:weekday(x.d)}, bfCells(x,bfDerive(x)))})),
+    total:Object.assign({date:null, wd:''}, bfCells(t,d)),
+    selectable:true, selSet:STATE.selDays,
+    onSelect:(k,e)=>{ toggleSet(STATE.selDays,k,e&&(e.ctrlKey||e.metaKey)); syncDateInputs(); renderAll(); }});
+
+  multiLine('bfCpmCtr', dd, [{label:'CPM',fn:x=>x.im?+((x.sp*taxf())/x.im*1000).toFixed(2):null,color:cvar('--chart-cpm'),fmt:'brl',axis:'L'},
+    {label:'CTR',fn:x=>x.im?+(x.cl/x.im).toFixed(4):null,color:cvar('--chart-ctr'),fmt:'pct',axis:'R'}], {L:{fmt:'brl'},R:{fmt:'pct'}});
+  multiLine('bfCrConv', dd, [{label:'CR',fn:x=>x.cl?+(x.pv/x.cl).toFixed(4):null,color:cvar('--chart-cr'),fmt:'pct',axis:'L'},
+    {label:'Conv. página',fn:x=>x.pv?+(bfLeadsOf(x)/x.pv).toFixed(4):null,color:cvar('--chart-convlp'),fmt:'pct',axis:'L'}], {L:{fmt:'pct'}});
+  multiLine('bfCpl', dd, [{label:'CPL',fn:x=>{const L=bfLeadsOf(x);return L?+((x.sp*taxf())/L).toFixed(2):null;},color:cink(),fmt:'brl',axis:'L'},
+    {label:'CPC',fn:x=>x.cl?+((x.sp*taxf())/x.cl).toFixed(2):null,color:cvar('--chart-cpm'),fmt:'brl',axis:'R'}], {L:{fmt:'brl'},R:{fmt:'brl'}});
+  const adAgg=bfAgg(S.fM, BF_HAS_LEADS?S.fL:[], 'ad');
+  hbar('bfAdBar', Object.entries(adAgg).map(([label,a])=>({label,v:bfLeadsOf(a)})), x=>x.v, cvar('--chart-faturamento'), 10, intf);
+
+  /* origem dos leads (todas as origens, sem o drill de campanha) */
+  const bySrc={}; fLall.forEach(l=>{ const k=l.meta?'Meta Ads':l.src; bySrc[k]=(bySrc[k]||0)+1; });
+  hbar('bfSrcBar', Object.entries(bySrc).map(([label,v])=>({label,v})), x=>x.v, cvar('--chart-vendas'), 10, intf);
+  const sd={}; fLall.forEach(l=>{ if(!l.d) return; const r=sd[l.d]||(sd[l.d]={d:l.d,meta:0,outros:0,tot:0}); r.tot++; l.meta?r.meta++:r.outros++; });
+  const sdr=Object.values(sd).sort((a,b)=>a.d<b.d?1:-1);
+  renderTable({id:'bfSrcDaily', cols:[{key:'date',label:'Data',type:'date'},{key:'meta',label:'Meta Ads',type:'int'},{key:'outros',label:'Outras origens',type:'int'},{key:'tot',label:'Total',type:'int'},{key:'sh',label:'% Meta',type:'pct'}],
+    rows:sdr.map(r=>({k:r.d, cells:{date:r.d, meta:r.meta, outros:r.outros, tot:r.tot, sh:r.tot?r.meta/r.tot:null}})),
+    total:{date:null, meta:sdr.reduce((s,r)=>s+r.meta,0), outros:sdr.reduce((s,r)=>s+r.outros,0), tot:sdr.reduce((s,r)=>s+r.tot,0),
+      sh:(()=>{const T=sdr.reduce((s,r)=>s+r.tot,0);return T?sdr.reduce((s,r)=>s+r.meta,0)/T:null;})()}});
+
+  /* tabelas de otimização com drill-down */
+  const rowsOf=m=>Object.entries(m).map(([k,a])=>({k, cells:Object.assign({dim:k}, bfCells(a,bfDerive(a)))}));
+  const totOf=(fM2,fL2)=>{const a=bfTotals(fM2,fL2); return Object.assign({dim:null}, bfCells(a,bfDerive(a)));};
+  const Sc=bfScope('C'), Sa=bfScope('A'), Sd=bfScope('D');
+  const LL=x=>BF_HAS_LEADS?x:[];
+  renderTable({id:'bfCamp', cols:BF_HCOLS.map((c,i)=>i===0?{...c,label:'Campanha'}:c), rows:rowsOf(bfAgg(Sc.fM,LL(Sc.fL),'camp')), total:totOf(Sc.fM,LL(Sc.fL)),
+    selectable:true, selSet:STATE.bSelC, onSelect:(k,e)=>bfSelDim('C',k,e&&(e.ctrlKey||e.metaKey))});
+  renderTable({id:'bfAdset', cols:BF_HCOLS.map((c,i)=>i===0?{...c,label:'Conjunto',big:true}:c), rows:rowsOf(bfAgg(Sa.fM,LL(Sa.fL),'adset')), total:totOf(Sa.fM,LL(Sa.fL)),
+    selectable:true, selSet:STATE.bSelA, onSelect:(k,e)=>bfSelDim('A',k,e&&(e.ctrlKey||e.metaKey))});
+  renderTable({id:'bfAd', cols:BF_HCOLS.map((c,i)=>i===0?{...c,label:'Anúncio'}:c), rows:rowsOf(bfAgg(Sd.fM,LL(Sd.fL),'ad')), total:totOf(Sd.fM,LL(Sd.fL)),
+    selectable:true, selSet:STATE.bSelAd, onSelect:(k,e)=>bfSelDim('D',k,e&&(e.ctrlKey||e.metaKey))});
+  bfCplDimChart('bfChCamp', Sc.fM, Sc.fL, 'camp');
+  bfCplDimChart('bfChAdset', Sa.fM, Sa.fL, 'adset');
+  bfCplDimChart('bfChAd', Sd.fM, Sd.fL, 'ad');
+}
+
 /* ---------------- date presets ---------------- */
 const PRESETS=[
   ['hoje','Hoje',()=>[TODAY,TODAY]],
@@ -792,12 +980,13 @@ function setPage(p){ STATE.page=p;
   document.getElementById('page-meta').classList.toggle('active',p==='meta');
   document.getElementById('page-rel').classList.toggle('active',p==='rel');
   document.getElementById('page-ia').classList.toggle('active',p==='ia');
-  document.getElementById('ptitle').textContent = p==='meta'?'Meta Ads':(p==='rel'?'Relatórios':(p==='ia'?'IA Insights':'Visão Geral'));
+  document.getElementById('page-bf').classList.toggle('active',p==='bf');
+  document.getElementById('ptitle').textContent = p==='meta'?'Meta Ads':(p==='rel'?'Relatórios':(p==='ia'?'IA Insights':(p==='bf'?(BF?BF.label:'Lançamento'):'Visão Geral')));
   document.getElementById('navToggle').checked=false;
   history.replaceState(null,'', '#'+p);
   renderAll();
 }
-function renderAll(){ if(STATE.page==='meta') renderMeta(); else if(STATE.page==='rel') renderRelatorios(); else if(STATE.page==='ia') renderIA(); else renderGeral(); }
+function renderAll(){ if(STATE.page==='meta') renderMeta(); else if(STATE.page==='rel') renderRelatorios(); else if(STATE.page==='ia') renderIA(); else if(STATE.page==='bf') renderBF(); else renderGeral(); }
 
 /* Tema ESCURO é o padrão; só fica claro se o usuário tiver escolhido 'light'. */
 function applyTheme(){ const t=localStorage.getItem('dm_theme'); if(t==='light') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme','dark'); }
@@ -813,7 +1002,7 @@ document.getElementById('ppCancel').addEventListener('click',ppClose);
 document.getElementById('periodPop').addEventListener('click',e=>e.stopPropagation());
 document.addEventListener('click',()=>{ if(ppIsOpen()) ppClose(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&ppIsOpen()) ppClose(); });
-document.getElementById('clearBtn').addEventListener('click',()=>{ STATE.mSelC.clear();STATE.mSelA.clear();STATE.mSelAd.clear();STATE.selDays.clear(); applyPreset('mes'); });
+document.getElementById('clearBtn').addEventListener('click',()=>{ STATE.mSelC.clear();STATE.mSelA.clear();STATE.mSelAd.clear();STATE.bSelC.clear();STATE.bSelA.clear();STATE.bSelAd.clear();STATE.selDays.clear(); applyPreset('mes'); });
 document.getElementById('refreshBtn').addEventListener('click',function(){ this.classList.add('loading'); goRefresh(); });
 
 /* IA Insights config + geração */
@@ -843,7 +1032,10 @@ document.getElementById('buildFoot2').textContent='· build __BUILD_ID__';
 
 syncDateInputs(); iaStatusText();
 document.getElementById('taxToggle').classList.toggle('on', STATE.tax);  /* imposto Meta ON por padrão */
-setPage(location.hash==='#meta'?'meta':(location.hash==='#rel'?'rel':(location.hash==='#ia'?'ia':'geral')));
+if(BF){ document.getElementById('bfNav').hidden=false; document.getElementById('bfNavSec').hidden=false;
+  document.getElementById('bfNavLabel').textContent=BF.label; document.getElementById('bfSub').textContent=[BF.sub,BF.sigla].filter(Boolean).join(' · '); }
+const HASH_PAGES={'#meta':'meta','#rel':'rel','#ia':'ia','#bf':BF?'bf':'geral'};
+setPage(HASH_PAGES[location.hash]||'geral');
 
 /* ---------------- Aviso de nova versão (sem recarregar por cima do usuário) ----------------
    O build publica uma versão nova a cada ~30 min, mas o GitHub Pages serve o HTML

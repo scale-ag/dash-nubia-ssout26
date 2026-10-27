@@ -161,6 +161,26 @@ ConvCHK (Vendas/Checkouts) · Faturamento · ROAS (Faturamento/Gasto) · Ticket 
 - Se não houver coluna de Receita, não há Receita/ROAS/Ticket — ajuste o texto desta
   seção se o cliente tiver uma regra diferente.
 
+### Aba Black Friday (lançamento de captação · 11/11/2026)
+Aba extra **★ Black Friday** (menu "Lançamentos"), com dados próprios — não mistura
+com as abas do SS-OUT26. Config em `build/config.py` (bloco `BF_*`); lógica em
+`process_bf()`/`load_bf()` do `build.py` e `renderBF()` do `app.js`.
+
+| Fonte | Planilha | gid | Colunas |
+|-------|----------|-----|---------|
+| **Meta Ads (Adveronix)** "Dash Black NOV - Nubia" | `1pD3Q4LOSPDWGfCG0xAIrdPOnCzWmOlhSM3d5xQMObnU` | `0` (Página1) | Day · Campaign Name · Ad Set Name · Ad Name · Impressions · Link Clicks · Amount Spent · Landing Page Views · Leads |
+| **Leads da página de captura** (UTMs) | `1RrlEKrKqvoweVriQv6M2j7-FZdkKb4DydVoMa-9IOy8` | `0` | data + utm_source/campaign/medium/content/term (casadas por nome) |
+
+- Sigla: `BF26` (ex.: `BF26 | E2-CAP | P1-QUENTE | LEAD | ABO | 2026-10-27 | Teste de Criativos`).
+- **Leads** = cadastros da planilha atribuídos ao Meta: casa campanha+conjunto+anúncio
+  (tratando UTMs invertidas), a coluna do anúncio é **detectada sozinha** (a UTM que mais
+  bate com os `Ad Name`), e `utm_source = Meta-Ads` conta como Meta mesmo sem casar.
+  **Leads pixel** = coluna Leads do gerenciador. **CPL** = Gasto ÷ Leads; **Conv. página**
+  = Leads ÷ Page Views. A planilha de leads **não é exposta** (só data/UTMs, sem PII).
+- Se a planilha de leads não abrir (precisa estar "Qualquer pessoa com o link pode ver"),
+  o build **não quebra**: avisa no log e a aba usa os leads do pixel, com um alerta na tela.
+- Teste local: `python build/build.py ... --bf-meta-file bf_meta.csv --bf-leads-file bf_leads.csv`.
+
 ### Imposto Meta Ads
 Toggle ON aplica o `TAX_FACTOR` (definido em `build/config.py`) sobre os custos do Meta.
 
