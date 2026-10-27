@@ -171,7 +171,11 @@ nenhuma aba as mostra.
   (gid 0, todas as campanhas dela) + aba de seguidores (gid `1524023057`). KPIs: gasto total,
   seguidores, custo por seguidor, leads, CPL, impressões, cliques; tabela **por objetivo**
   (Seguidores × Captação), evolução diária (gasto empilhado + seguidores/leads), tabela de
-  campanhas com objetivo e custo por resultado.
+  campanhas com objetivo e custo por resultado. Inclui também o objetivo **Vendas · SS-OUT26
+  (histórico)** vindo das planilhas antigas (Meta SS-OUT26 + aba Vendas, vendas atribuídas ao
+  Meta, CAC) — set–out/2026. Regra do cliente: **dados atuais = planilhas novas**
+  (Adveronix + Leads); planilhas antigas só para o histórico. Verificado em 27/10/2026 que
+  não há campanha repetida entre as planilhas (sem dupla contagem de gasto).
 - **Black Friday** = só campanhas com a sigla `BF_SIGLA` (`BF26`) da aba de captação.
 - **Seguidores IG** = aba de seguidores (`SEG_GID`): Day · Campaign Name · Ad Name · Ad Set Name ·
   Impressions · Link Clicks · Amount Spent · Seguidores · Custo por seguidor (este último é

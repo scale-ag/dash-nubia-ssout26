@@ -810,7 +810,10 @@ function renderGeral(){
   const sg=segActive(), cp=CAP_META.filter(m=>dateActive(m.d)), ld=bfLeadsActive().filter(l=>l.meta);
   const ts=segTotals(sg), ds=segDerive(ts);
   const tc=bfTotals(cp, BF_HAS_LEADS?ld:[]), dc=bfDerive(tc);
-  const gTot=ds.gasto+dc.gasto, imTot=ts.im+tc.im, clTot=ts.cl+tc.cl;
+  /* histórico de vendas SS-OUT26 (planilhas antigas): gasto do Meta + vendas atribuídas ao Meta */
+  const om=metaActive(), os_=salesActive().filter(x=>x.meta);
+  const to=totals(os_, om), dov=derive(to);
+  const gTot=ds.gasto+dc.gasto+dov.gasto, imTot=ts.im+tc.im+to.im, clTot=ts.cl+tc.cl+to.cl;
   const cpmT=imTot?gTot/imTot*1000:null, ctrT=imTot?clTot/imTot:null, cpcT=clTot?gTot/clTot:null;
   document.getElementById('gKpis').innerHTML=[
     {label:'Gasto total',val:brl(gTot),aux:'todas as campanhas'+(STATE.tax?' · c/ imposto':''),hero:true},
@@ -818,6 +821,7 @@ function renderGeral(){
     {label:'Custo por seguidor',val:brl(ds.cps),aux:'campanhas de seguidores'},
     {label:'Leads captados',val:intf(dc.leads),aux:(BF_HAS_LEADS?'planilha de captura':'pixel do Meta')+' · gasto '+brl(dc.gasto)},
     {label:'CPL',val:`<span class="${bfCplCls(dc.cpl)}">${brl(dc.cpl)}</span>`,aux:'campanhas de captação'},
+    {label:'Vendas (SS-OUT26)',val:intf(to.vendas),aux:'CAC '+brl(dov.cac)+' · fat. '+brl(to.fat)},
     {label:'Impressões',val:intf(imTot),aux:'CPM '+brl(cpmT)},
     {label:'Cliques',val:intf(clTot),aux:'CTR '+pct(ctrT)+' · CPC '+brl(cpcT)},
   ].map(kpiCard).join('');
@@ -828,11 +832,14 @@ function renderGeral(){
   renderTable({id:'gObj', cols:[{key:'obj',label:'Objetivo',type:'dim'},{key:'gasto',label:'Gasto',type:'brl'},{key:'share',label:'% do gasto',type:'pct'},
       {key:'impr',label:'Impressões',type:'int'},{key:'cpm',label:'CPM',type:'brl'},{key:'cliques',label:'Cliques',type:'int'},{key:'ctr',label:'CTR',type:'pct'},
       {key:'cpc',label:'CPC',type:'brl'},{key:'rlabel',label:'Resultado',type:'dim',w:110},{key:'res',label:'Qtd.',type:'int'},{key:'cpr',label:'Custo/resultado',type:'brl'}],
-    rows:[objRow(SEG_LABEL, ds.gasto, ts.im, ts.cl, ts.fol, 'Seguidores'), objRow('Captação (leads)', dc.gasto, tc.im, tc.cl, dc.leads, 'Leads')],
+    rows:[objRow(SEG_LABEL, ds.gasto, ts.im, ts.cl, ts.fol, 'Seguidores'), objRow('Captação (leads)', dc.gasto, tc.im, tc.cl, dc.leads, 'Leads'),
+      objRow('Vendas · SS-OUT26 (histórico)', dov.gasto, to.im, to.cl, to.vendas, 'Vendas')],
     total:{obj:'Total', gasto:gTot, share:gTot?1:null, impr:imTot, cpm:cpmT, cliques:clTot, ctr:ctrT, cpc:cpcT, rlabel:'', res:null, cpr:null}});
 
   /* evolução diária */
-  const days={}; const g=d=>days[d]||(days[d]={d, sSp:0, cSp:0, fol:0, lp:0, lm:0, im:0, cl:0});
+  const days={}; const g=d=>days[d]||(days[d]={d, sSp:0, cSp:0, vSp:0, ven:0, fol:0, lp:0, lm:0, im:0, cl:0});
+  om.forEach(r=>{ if(!r.d) return; const x=g(r.d); x.vSp+=r.sp; x.im+=r.im; x.cl+=r.cl; });
+  os_.forEach(r=>{ if(!r.d) return; g(r.d).ven+=r.main; });
   sg.forEach(r=>{ if(!r.d) return; const x=g(r.d); x.sSp+=r.sp; x.fol+=r.fol; x.im+=r.im; x.cl+=r.cl; });
   cp.forEach(r=>{ if(!r.d) return; const x=g(r.d); x.cSp+=r.sp; x.lp+=r.lp; x.im+=r.im; x.cl+=r.cl; });
   ld.forEach(r=>{ if(!r.d) return; g(r.d).lm+=1; });
@@ -842,6 +849,7 @@ function renderGeral(){
     charts.gEvo=new Chart(el,{data:{labels:dd.map(x=>x.d.slice(5)),datasets:[
       {type:'bar',label:'Gasto '+SEG_LABEL,data:dd.map(x=>+(x.sSp*T).toFixed(2)),backgroundColor:cvar('--cc1'),stack:'g',yAxisID:'y',order:3},
       {type:'bar',label:'Gasto Captação',data:dd.map(x=>+(x.cSp*T).toFixed(2)),backgroundColor:cvar('--cc6'),stack:'g',yAxisID:'y',order:3},
+      {type:'bar',label:'Gasto Vendas SS-OUT26',data:dd.map(x=>+(x.vSp*T).toFixed(2)),backgroundColor:cvar('--cc4'),stack:'g',yAxisID:'y',order:3},
       {type:'line',label:'Seguidores',data:dd.map(x=>x.fol),borderColor:cvar('--chart-faturamento'),backgroundColor:cvar('--chart-faturamento'),yAxisID:'y1',borderWidth:2,pointRadius:2,tension:.25,order:1},
       {type:'line',label:'Leads',data:dd.map(L),borderColor:cink(),backgroundColor:cink(),yAxisID:'y1',borderWidth:2,pointRadius:2,tension:.25,order:0},
     ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
@@ -849,17 +857,18 @@ function renderGeral(){
       scales:{x:{stacked:true,ticks:{color:mut,font:{size:10}},grid:{display:false}},
         y:{stacked:true,beginAtZero:true,ticks:{color:mut,font:{size:10},callback:v=>brl(v)},grid:{color:cgrid()},title:{display:true,text:'Gasto R$',color:mut,font:{size:10}}},
         y1:{position:'right',beginAtZero:true,ticks:{color:mut,font:{size:10}},grid:{display:false},title:{display:true,text:'Seguidores / Leads',color:mut,font:{size:10}}}}}}); }
-  const dCells=x=>{ const s=x.sSp*T, c=x.cSp*T, l=L(x); return {date:x.d, wd:x.d?weekday(x.d):'', gasto:s+c, gs:s, fol:x.fol, cps:x.fol?s/x.fol:null, gc:c, leads:l, cpl:l?c/l:null, impr:x.im, cpm:x.im?(s+c)/x.im*1000:null}; };
-  const tot=dd.reduce((a,x)=>{ ['sSp','cSp','fol','lp','lm','im','cl'].forEach(k=>a[k]+=x[k]); return a; },{d:null,sSp:0,cSp:0,fol:0,lp:0,lm:0,im:0,cl:0});
+  const dCells=x=>{ const s=x.sSp*T, c=x.cSp*T, v=x.vSp*T, l=L(x); return {date:x.d, wd:x.d?weekday(x.d):'', gasto:s+c+v, gs:s, fol:x.fol, cps:x.fol?s/x.fol:null, gc:c, leads:l, cpl:l?c/l:null, gv:v, ven:x.ven, cac:x.ven?v/x.ven:null, impr:x.im, cpm:x.im?(s+c+v)/x.im*1000:null}; };
+  const tot=dd.reduce((a,x)=>{ ['sSp','cSp','vSp','ven','fol','lp','lm','im','cl'].forEach(k=>a[k]+=x[k]); return a; },{d:null,sSp:0,cSp:0,vSp:0,ven:0,fol:0,lp:0,lm:0,im:0,cl:0});
   renderTable({id:'gDaily', cols:[{key:'date',label:'Data',type:'date'},{key:'wd',label:'Dia',type:'dim',w:64},{key:'gasto',label:'Gasto total',type:'brl',heat:'gasto'},
       {key:'gs',label:'Gasto seguidores',type:'brl'},{key:'fol',label:'Seguidores',type:'int',heat:'fat'},{key:'cps',label:'Custo/seguidor',type:'brl'},
       {key:'gc',label:'Gasto captação',type:'brl'},{key:'leads',label:'Leads',type:'int',heat:'fat'},{key:'cpl',label:'CPL',type:'brl'},
+      {key:'gv',label:'Gasto vendas',type:'brl'},{key:'ven',label:'Vendas',type:'int'},{key:'cac',label:'CAC',type:'brl'},
       {key:'impr',label:'Impressões',type:'int'},{key:'cpm',label:'CPM',type:'brl'}],
     rows:dd.slice().reverse().map(x=>({k:x.d, cells:dCells(x)})), total:Object.assign(dCells(tot),{date:null,wd:''}),
     selectable:true, selSet:STATE.selDays, onSelect:(k,e)=>{ toggleSet(STATE.selDays,k,e&&(e.ctrlKey||e.metaKey)); syncDateInputs(); renderAll(); }});
   multiLine('gCost', dd, [{label:'Custo/seguidor',fn:x=>x.fol?+((x.sSp*T)/x.fol).toFixed(2):null,color:cvar('--chart-faturamento'),fmt:'brl',axis:'L'},
     {label:'CPL',fn:x=>{const l=L(x);return l?+((x.cSp*T)/l).toFixed(2):null;},color:cink(),fmt:'brl',axis:'R'}], {L:{fmt:'brl'},R:{fmt:'brl'}});
-  multiLine('gCpmCtr', dd, [{label:'CPM',fn:x=>x.im?+(((x.sSp+x.cSp)*T)/x.im*1000).toFixed(2):null,color:cvar('--chart-cpm'),fmt:'brl',axis:'L'},
+  multiLine('gCpmCtr', dd, [{label:'CPM',fn:x=>x.im?+(((x.sSp+x.cSp+x.vSp)*T)/x.im*1000).toFixed(2):null,color:cvar('--chart-cpm'),fmt:'brl',axis:'L'},
     {label:'CTR',fn:x=>x.im?+(x.cl/x.im).toFixed(4):null,color:cvar('--chart-ctr'),fmt:'pct',axis:'R'}], {L:{fmt:'brl'},R:{fmt:'pct'}});
 
   /* campanhas (todas) */
@@ -867,10 +876,12 @@ function renderGeral(){
   sg.forEach(r=>{ const c=gc(r.camp,SEG_LABEL); c.sp+=r.sp; c.im+=r.im; c.cl+=r.cl; c.res+=r.fol; });
   cp.forEach(r=>{ const c=gc(r.camp,'Captação'); c.sp+=r.sp; c.im+=r.im; c.cl+=r.cl; if(!BF_HAS_LEADS) c.res+=r.lp; });
   if(BF_HAS_LEADS) ld.forEach(r=>{ if(camps[r.camp]&&camps[r.camp].obj==='Captação') camps[r.camp].res+=1; });
+  om.forEach(r=>{ const c=gc(r.camp,'Vendas'); c.sp+=r.sp; c.im+=r.im; c.cl+=r.cl; });
+  os_.forEach(r=>{ if(camps[r.camp]&&camps[r.camp].obj==='Vendas') camps[r.camp].res+=r.main; });
   renderTable({id:'gCamp', cols:[{key:'dim',label:'Campanha',type:'dim',big:true},{key:'obj',label:'Objetivo',type:'dim',w:150},{key:'gasto',label:'Gasto',type:'brl'},
       {key:'impr',label:'Impressões',type:'int'},{key:'cpm',label:'CPM',type:'brl'},{key:'cliques',label:'Cliques',type:'int'},{key:'ctr',label:'CTR',type:'pct'},
       {key:'res',label:'Resultado',type:'int'},{key:'cpr',label:'Custo/resultado',type:'brl'}],
-    rows:Object.entries(camps).map(([k,c])=>{const gg=c.sp*T; return {k, cells:{dim:k, obj:c.obj==='Captação'?'Captação · leads':c.obj+' · seguidores', gasto:gg, impr:c.im, cpm:c.im?gg/c.im*1000:null,
+    rows:Object.entries(camps).filter(([k,c])=>c.sp>0||c.res>0).map(([k,c])=>{const gg=c.sp*T; return {k, cells:{dim:k, obj:c.obj==='Captação'?'Captação · leads':(c.obj==='Vendas'?'Vendas · SS-OUT26':c.obj+' · seguidores'), gasto:gg, impr:c.im, cpm:c.im?gg/c.im*1000:null,
       cliques:c.cl, ctr:c.im?c.cl/c.im:null, res:c.res, cpr:c.res?gg/c.res:null}};}),
     total:{dim:null, obj:'', gasto:gTot, impr:imTot, cpm:cpmT, cliques:clTot, ctr:ctrT, res:null, cpr:null}});
 }
