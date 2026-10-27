@@ -197,6 +197,11 @@ com as abas do SS-OUT26. Config em `build/config.py` (bloco `BF_*`); lógica em
   bate com os `Ad Name`), e `utm_source = Meta-Ads` conta como Meta mesmo sem casar.
   **Leads pixel** = coluna Leads do gerenciador. **CPL** = Gasto ÷ Leads; **Conv. página**
   = Leads ÷ Page Views. A planilha de leads **não é exposta** (só data/UTMs, sem PII).
+- Planilha de Leads liberada em 27/10/2026: colunas `data_inscricao · nome · email · telefone ·
+  utm_source · utm_campaign · utm_medium · utm_content · utm_term · url_pagina` (data
+  `dd/mm/aaaa hh:mm`). Conferido: 85 leads Meta-Ads, 100% casados com anúncio pelo
+  `utm_content`; em 27/10 bateu 80 (planilha) × 79 (pixel). Linhas sem UTM nas colunas usam
+  as UTMs do `url_pagina`, se houver.
 - Se a planilha de leads não abrir (precisa estar "Qualquer pessoa com o link pode ver"),
   o build **não quebra**: avisa no log e a aba usa os leads do pixel, com um alerta na tela.
 - Teste local: `python build/build.py ... --bf-meta-file bf_meta.csv --bf-leads-file bf_leads.csv`.
