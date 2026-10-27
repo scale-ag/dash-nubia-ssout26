@@ -162,10 +162,10 @@ ConvCHK (Vendas/Checkouts) · Faturamento · ROAS (Faturamento/Gasto) · Ticket 
   seção se o cliente tiver uma regra diferente.
 
 ### Estrutura atual das abas (desde 27/10/2026)
-**Visão Geral → ★ Black Friday → ♥ Seguidores IG → IA Insights.** As abas *Meta Ads* e
-*Relatórios* (funil de vendas SS-OUT26) foram removidas a pedido do cliente; o build ainda
-lê as planilhas do SS-OUT26 (config obrigatória e usada pela IA Insights/relatórios), mas
-nenhuma aba as mostra.
+**Visão Geral → ★ Black Friday → ♥ Seguidores IG.** As abas *Meta Ads*, *Relatórios* e
+*IA Insights* foram removidas a pedido do cliente (27/10/2026). O build ainda lê as
+planilhas do SS-OUT26 (config obrigatória), usadas só no histórico da Visão Geral.
+`ia-worker/`, `deploy-worker.yml` e `SETUP-IA.md` ficaram no repositório, sem uso na página.
 
 - **Visão Geral** = soma de **todas as campanhas** da planilha do Adveronix: aba de captação
   (gid 0, todas as campanhas dela) + aba de seguidores (gid `1524023057`). KPIs: gasto total,
