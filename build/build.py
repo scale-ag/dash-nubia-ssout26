@@ -27,6 +27,7 @@ import re
 import sys
 import unicodedata
 import urllib.request
+from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timezone, timedelta
 
 try:
@@ -504,7 +505,8 @@ def process_bf(meta_rows, lead_rows):
                    "carimbo", "timestamp", "criado"],
              "src": ["utm_source", "utm source"], "camp": ["utm_campaign", "utm campaign"],
              "med": ["utm_medium", "utm medium"], "cont": ["utm_content", "utm content"],
-             "term": ["utm_term", "utm term"]},
+             "term": ["utm_term", "utm term"],
+             "url": ["url_pagina", "url da pagina", "url", "page_url", "landing"]},
             {},
         )
         body = [r for r in lead_rows[1:] if any((c or "").strip() for c in r)]
@@ -512,14 +514,23 @@ def process_bf(meta_rows, lead_rows):
         score = {k: sum(1 for r in body if norm(cell(r, li[k])) in ads) for k in ("cont", "term", "med")}
         ad_key = max(score, key=score.get) if any(score.values()) else "cont"
         info["ad_col"] = {"cont": "utm_content", "term": "utm_term", "med": "utm_medium"}[ad_key]
+        def url_utms(r):
+            """UTMs da URL da página quando as colunas utm_* vieram vazias."""
+            q = parse_qs(urlparse(cell(r, li["url"])).query) if cell(r, li["url"]) else {}
+            return {k: (q.get(k) or [""])[0].strip() for k in
+                    ("utm_source", "utm_campaign", "utm_medium", "utm_content", "utm_term")}
+        col_of = {"cont": "utm_content", "term": "utm_term", "med": "utm_medium"}
         for r in body:
             if is_test_row(" ".join(str(c) for c in r)):
                 continue
             u_c, u_m, u_a = cell(r, li["camp"]), cell(r, li["med"]), cell(r, li[ad_key])
+            src = cell(r, li["src"])
+            if not (src or u_c or u_m or u_a):
+                q = url_utms(r)
+                src, u_c, u_m, u_a = q["utm_source"], q["utm_campaign"], q["utm_medium"], q[col_of[ad_key]]
             nc, nm, na = norm(u_c), norm(u_m), norm(u_a)
             hit = (full.get((nc, nm, na)) or full.get((nm, nc, na))
                    or by_ad.get((nc, na)) or by_ad.get((nm, na)))
-            src = cell(r, li["src"])
             is_meta = hit is not None or any(norm(src) == norm(x) for x in META_UTM_SOURCES)
             if hit:
                 camp, adset, ad = hit
